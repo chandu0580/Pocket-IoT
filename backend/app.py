@@ -169,19 +169,13 @@ def create_app() -> Flask:
 
     app.config["ALERT_ACCEL_THRESHOLD"] = float(os.getenv("ALERT_ACCEL_THRESHOLD", "15.0"))
 
-    import re
-    cors_origins = [
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "https://pocketiot.vercel.app",
-        re.compile(r"^https://.*\.vercel\.app$")
-    ]
-    if os.getenv("ALLOWED_ORIGINS"):
-        cors_origins.extend(os.getenv("ALLOWED_ORIGINS").split(","))
-        
-    CORS(app, resources={r"/*": {"origins": cors_origins}}, supports_credentials=True)
+    # Updated CORS for deployment stabilization
+    CORS(app, 
+         resources={r"/*": {"origins": "*"}}, 
+         supports_credentials=True,
+         expose_headers=["Content-Type", "Authorization"],
+         allow_headers=["Content-Type", "Authorization", "X-Requested-With"])
+
 
     @app.route("/")
     def index():
