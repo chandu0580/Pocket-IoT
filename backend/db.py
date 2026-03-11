@@ -6,11 +6,14 @@ import sqlite3
 from contextlib import contextmanager
 from typing import Generator, Any, Union
 
+# Try importing PostgreSQL driver
 try:
     import psycopg2
     from psycopg2.extras import RealDictCursor
     HAS_POSTGRES = True
-except ImportError:
+except Exception:
+    psycopg2 = None
+    RealDictCursor = None
     HAS_POSTGRES = False
 
 
@@ -18,19 +21,30 @@ except ImportError:
 
 @contextmanager
 def get_db_connection(url_or_path: str) -> Generator[Union[sqlite3.Connection, Any], None, None]:
+
+    # PostgreSQL
     if url_or_path.startswith(("postgres://", "postgresql://")):
-        if not HAS_POSTGRES:
+        if not HAS_POSTGRES or psycopg2 is None:
             raise ImportError("psycopg2 is required for PostgreSQL support but not installed.")
 
         db_url = url_or_path.replace("postgres://", "postgresql://", 1)
-        conn = psycopg2.connect(db_url)
-        conn.autocommit = False
+
+        try:
+            conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor)
+            conn.autocommit = False
+        except Exception as e:
+            logging.error("PostgreSQL connection failed: %s", e)
+            raise
+
         try:
             yield conn
         finally:
             conn.close()
+
+    # SQLite
     else:
         db_path = url_or_path
+
         if db_path.startswith("sqlite:///"):
             db_path = db_path.replace("sqlite:///", "", 1)
 
@@ -43,9 +57,11 @@ def get_db_connection(url_or_path: str) -> Generator[Union[sqlite3.Connection, A
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
             check_same_thread=False,
         )
+
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
+
         try:
             yield conn
         finally:
@@ -80,7 +96,11 @@ def column_exists(cursor: Any, table: str, column: str) -> bool:
 
 
 def _is_postgres(conn: Any) -> bool:
-    return HAS_POSTGRES and isinstance(conn, psycopg2.extensions.connection) if HAS_POSTGRES else False
+    """Return True if the connection is a PostgreSQL connection."""
+    if not HAS_POSTGRES or psycopg2 is None:
+        return False
+    return isinstance(conn, psycopg2.extensions.connection)
+
 
 
 # ─────────────────────────── Step 1: Base Tables ─────────────────────────────
