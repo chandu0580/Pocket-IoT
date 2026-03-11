@@ -20,17 +20,8 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from config import Config
 
-try:
-    import psycopg2
-    from psycopg2 import extensions as pg_extensions
-    HAS_POSTGRES = True
-except ImportError:
-    psycopg2 = None  # type: ignore
-    pg_extensions = None # type: ignore
-    HAS_POSTGRES = False
-
 import sse
-from db import get_db_connection, init_db, get_placeholder
+from db import get_db_connection, init_db, get_placeholder, is_postgres
 from services.notification_service import trigger_alert_notifications
 from models import (
     create_alert,
@@ -365,7 +356,7 @@ def create_app() -> Flask:
     def api_sensor_stats():
         try:
             with get_db_connection(app.config["DATABASE_PATH"]) as conn:
-                is_pg = HAS_POSTGRES and pg_extensions and isinstance(conn, pg_extensions.connection)
+                is_pg = is_postgres(conn)
                 c = conn.cursor()
 
                 # Get optional device_id from query parameters
@@ -434,7 +425,7 @@ def create_app() -> Flask:
     def api_devices():
         try:
             with get_db_connection(app.config["DATABASE_PATH"]) as conn:
-                is_pg = HAS_POSTGRES and pg_extensions and isinstance(conn, pg_extensions.connection)
+                is_pg = is_postgres(conn)
                 p = get_placeholder(conn)
                 c = conn.cursor()
                 if is_pg:
@@ -492,7 +483,7 @@ def create_app() -> Flask:
         """Return latest GPS location for every device that has sensor data."""
         try:
             with get_db_connection(app.config["DATABASE_PATH"]) as conn:
-                is_pg = HAS_POSTGRES and pg_extensions and isinstance(conn, pg_extensions.connection)
+                is_pg = is_postgres(conn)
                 p = get_placeholder(conn)
                 c = conn.cursor()
                 if is_pg:
@@ -1080,7 +1071,7 @@ def create_app() -> Flask:
                     # Check if we already alerted for low battery recently (within 1 hour)
                     c = conn.cursor()
                     placeholder = get_placeholder(conn)
-                    if HAS_POSTGRES and pg_extensions and isinstance(conn, pg_extensions.connection):
+                    if is_postgres(conn):
                         check_query = "SELECT COUNT(*) FROM alerts WHERE device_id = %s AND type = 'battery' AND created_at::timestamp > NOW() - INTERVAL '1 hour'"
                     else:
                         check_query = "SELECT COUNT(*) FROM alerts WHERE device_id = ? AND type = 'battery' AND created_at > datetime('now', '-1 hour')"
@@ -1484,7 +1475,7 @@ def create_app() -> Flask:
             offset = request.args.get("offset", 0, type=int)
             
             with get_db_connection(app.config["DATABASE_PATH"]) as conn:
-                is_pg = HAS_POSTGRES and pg_extensions and isinstance(conn, pg_extensions.connection)
+                is_pg = is_postgres(conn)
                 c = conn.cursor()
                 p = get_placeholder(conn)
                 
@@ -1531,7 +1522,7 @@ def create_app() -> Flask:
                 return jsonify({"error": "device_id is required"}), 400
                 
             with get_db_connection(app.config["DATABASE_PATH"]) as conn:
-                is_pg = HAS_POSTGRES and pg_extensions and isinstance(conn, pg_extensions.connection)
+                is_pg = is_postgres(conn)
                 c = conn.cursor()
                 
                 # Time range logic (matching aggregation logic)
@@ -1595,7 +1586,7 @@ def create_app() -> Flask:
     def api_ai_insights():
         try:
             with get_db_connection(app.config["DATABASE_PATH"]) as conn:
-                is_pg = HAS_POSTGRES and pg_extensions and isinstance(conn, pg_extensions.connection)
+                is_pg = is_postgres(conn)
                 c = conn.cursor()
                 
                 p = get_placeholder(conn)
@@ -1679,7 +1670,7 @@ def create_app() -> Flask:
 
         try:
             with get_db_connection(app.config["DATABASE_PATH"]) as conn:
-                is_pg = HAS_POSTGRES and hasattr(psycopg2, "extensions") and isinstance(conn, psycopg2.extensions.connection)
+                is_pg = is_postgres(conn)
                 c = conn.cursor()
                 
                 params = [request.org_id, interval]
@@ -1808,7 +1799,7 @@ def create_app() -> Flask:
                 placeholder = get_placeholder(conn)
                 
                 # Check if it's postgres or sqlite for date handling
-                is_pg = HAS_POSTGRES and hasattr(psycopg2, "extensions") and isinstance(conn, psycopg2.extensions.connection)
+                is_pg = is_postgres(conn)
                 
                 if metric == "anomalies":
                     # For anomalies we want frequency (count of anomalies per bucket)

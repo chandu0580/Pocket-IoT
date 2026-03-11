@@ -122,7 +122,7 @@ def column_exists(cursor: Any, table: str, column: str) -> bool:
         return False
 
 
-def _is_postgres(conn: Any) -> bool:
+def is_postgres(conn: Any) -> bool:
     """Return True if the connection is a PostgreSQL connection."""
     if not HAS_POSTGRES:
         return False
@@ -384,7 +384,7 @@ def init_db(url_or_path: str) -> None:
     try:
         with get_db_connection(url_or_path) as conn:
             cursor = conn.cursor()
-            is_pg = _is_postgres(conn)
+            is_pg = is_postgres(conn)
 
             logging.info("Initializing database at %s", url_or_path)
 
