@@ -114,15 +114,18 @@ def get_devices(conn: Any, org_id: int) -> List[Dict[str, Any]]:
     return [_row(r) for r in c.fetchall()]
 
 def get_all_devices(conn: Any) -> List[Dict[str, Any]]:
-    c = conn.cursor()
-    c.execute("""
-        SELECT id, name, device_token, status, last_seen, battery, last_lat, last_lng, 
-               battery_health, storage_usage, network_strength, os_info, created_at, group_id,
-               organization_id
-        FROM devices
-        ORDER BY id ASC
-    """)
-    return [_row(r) for r in c.fetchall()]
+    try:
+        c = conn.cursor()
+        c.execute("""
+            SELECT id, name, device_token, status, last_seen, battery, last_lat, last_lng, 
+                   battery_health, storage_usage, network_strength, os_info, created_at, group_id,
+                   organization_id
+            FROM devices
+            ORDER BY id ASC
+        """)
+        return [_row(r) for r in c.fetchall()]
+    except Exception:
+        return []
 
 
 def get_device(conn: Any, device_id: int, org_id: Optional[int] = None) -> Optional[Dict[str, Any]]:

@@ -156,7 +156,12 @@ def create_app() -> Flask:
     app.config["SQLALCHEMY_DATABASE_URI"] = app.config["DATABASE_PATH"]
     
     print(f"Starting backend with DATABASE_PATH: {app.config['DATABASE_PATH']}")
-          
+    
+    # Force DB Initialization on Startup
+    try:
+        init_db(app.config["DATABASE_PATH"])
+    except Exception as e:
+        print(f"❌ Critical: DB initialization failed: {e}")
 
     app.config["ALERT_ACCEL_THRESHOLD"] = float(os.getenv("ALERT_ACCEL_THRESHOLD", "15.0"))
 
@@ -222,7 +227,6 @@ def create_app() -> Flask:
         default_limits=["10000 per day", "2000 per hour"]
     )
 
-    init_db(app.config["DATABASE_PATH"])
     
     # Auto-seed admin user
     try:

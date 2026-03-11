@@ -1,21 +1,21 @@
 import os
 import json
 import logging
-from redis import Redis
 from concurrent.futures import ThreadPoolExecutor
 
 # Use a thread pool for background tasks on Windows
 executor = ThreadPoolExecutor(max_workers=4)
 
 # Connect to Redis for caching only
-redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 try:
-    redis_conn = Redis.from_url(redis_url)
-    # Ping to check if Redis is actually up
+    from redis import Redis
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    redis_conn = Redis.from_url(redis_url, decode_responses=True)
     redis_conn.ping()
     USE_REDIS = True
+    logging.info("✅ Redis connected successfully.")
 except Exception as e:
-    logging.warning(f"Could not connect to Redis: {e}")
+    logging.warning(f"⚠️ Redis unavailable (caching disabled): {e}")
     redis_conn = None
     USE_REDIS = False
     
