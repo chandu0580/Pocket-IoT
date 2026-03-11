@@ -24,8 +24,6 @@ def get_db_connection(url_or_path: str) -> Generator[Union[sqlite3.Connection, A
 
     # PostgreSQL
     if url_or_path.startswith(("postgres://", "postgresql://")):
-        if not HAS_POSTGRES or psycopg2 is None:
-            raise ImportError("psycopg2 is required for PostgreSQL support but not installed.")
 
         db_url = url_or_path.replace("postgres://", "postgresql://", 1)
 
@@ -33,13 +31,14 @@ def get_db_connection(url_or_path: str) -> Generator[Union[sqlite3.Connection, A
             conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor)
             conn.autocommit = False
         except Exception as e:
-            logging.error("PostgreSQL connection failed: %s", e)
+            logging.error("Postgres connection failed: %s", e)
             raise
 
         try:
             yield conn
         finally:
             conn.close()
+
 
     # SQLite
     else:
