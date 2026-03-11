@@ -148,7 +148,6 @@ def _create_base_tables(cursor: Any, is_pg: bool) -> None:
     """
     pk = "SERIAL PRIMARY KEY" if is_pg else "INTEGER PRIMARY KEY AUTOINCREMENT"
     dt = "CURRENT_TIMESTAMP" if is_pg else "(datetime('now'))"
-    bt = "TRUE" if is_pg else "1"
 
     stmts = [
         # Organizations (SaaS top-level tenant)
@@ -212,7 +211,7 @@ def _create_base_tables(cursor: Any, is_pg: bool) -> None:
             sensor_type TEXT NOT NULL,
             operator    TEXT NOT NULL,
             threshold   REAL NOT NULL,
-            is_enabled  BOOLEAN DEFAULT {bt},
+            is_enabled  BOOLEAN DEFAULT TRUE,
             created_at  TEXT NOT NULL DEFAULT {dt}
         )""",
 
