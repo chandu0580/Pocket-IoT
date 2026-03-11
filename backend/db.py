@@ -105,11 +105,15 @@ def get_placeholder(conn: Any) -> str:
 # ─────────────────────────────── Helpers ─────────────────────────────────────
 
 def _migrate(cursor: Any, stmt: str) -> None:
-    """Execute a SQL statement, silently ignoring any errors (e.g. column already exists)."""
+    """Execute a SQL statement, with informative logging for errors."""
     try:
         cursor.execute(stmt)
-    except Exception:
-        pass
+    except Exception as e:
+        err = str(e).lower()
+        # Silently ignore "already exists" errors which are common in idempotent migrations
+        if "already exists" in err or "duplicate column" in err or "duplicate key" in err:
+            return
+        logging.warning("Migration notice (non-critical): %s | Statement: %s", e, (stmt[:50] + "...") if len(stmt) > 50 else stmt)
 
 
 def column_exists(cursor: Any, table: str, column: str) -> bool:
@@ -373,32 +377,32 @@ def _create_indexes(cursor: Any) -> None:
 
 # ─────────────────────────────── Public API ──────────────────────────────────
 
+DB_INITIALIZED = False
+
 def init_db(url_or_path: str) -> None:
     """
-    Initialize the database in a safe, migration-friendly order:
-      1. Create base tables (minimal schema, no cross-table FK to migration-added tables)
-      2. Run migrations  (ALTER TABLE — idempotent via _migrate)
-      3. Create indexes  (guarded by column_exists checks)
-    Works correctly for both fresh databases and existing databases.
+    Initialize the database in a safe, migration-friendly order.
     """
+    global DB_INITIALIZED
     try:
         with get_db_connection(url_or_path) as conn:
             cursor = conn.cursor()
             is_pg = is_postgres(conn)
 
-            logging.info("Initializing database at %s", url_or_path)
+            logging.info("🚀 Starting database initialization at %s", url_or_path)
 
-            # ── Step 1: Base tables ───────────────────────────────────────────
+            # ── Step 1: Base tables
             _create_base_tables(cursor, is_pg)
 
-            # ── Step 2: Migrations ────────────────────────────────────────────
+            # ── Step 2: Migrations
             _run_migrations(cursor)
 
-            # ── Step 3: Indexes ───────────────────────────────────────────────
+            # ── Step 3: Indexes
             _create_indexes(cursor)
 
             conn.commit()
-            logging.info("Database ready.")
-    except Exception:
-        logging.exception("Failed to initialize database")
-        raise
+            DB_INITIALIZED = True
+            logging.info("✅ Database initialization complete and committed.")
+    except Exception as e:
+        logging.exception("❌ Critical failure during database initialization")
+        raise e

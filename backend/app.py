@@ -21,7 +21,7 @@ from flask_limiter.util import get_remote_address
 from config import Config
 
 import sse
-from db import get_db_connection, init_db, get_placeholder, is_postgres
+from db import get_db_connection, init_db, get_placeholder, is_postgres, DB_INITIALIZED
 from services.notification_service import trigger_alert_notifications
 from models import (
     create_alert,
@@ -2044,6 +2044,12 @@ def setup_ai():
 def heartbeat_monitor():
     """Background service to detect offline devices every 15 seconds."""
     while True:
+        # Wait for database initialization to finish
+        import db
+        if not db.DB_INITIALIZED:
+            time.sleep(2)
+            continue
+            
         time.sleep(15)
         try:
             with get_db_connection(app.config["DATABASE_PATH"]) as conn:
