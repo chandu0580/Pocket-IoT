@@ -1,4 +1,4 @@
 {
-    "buildCommand": "cd frontend && npm install --legacy-peer-deps && node node_modules/vite/bin/vite.js build",
-    "outputDirectory": "frontend/dist"
-}
+    "buildCommand": "npm install --legacy-peer-deps && npm run build",
+    "outputDirectory": "dist"
+}
