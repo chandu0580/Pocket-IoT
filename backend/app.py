@@ -21,7 +21,8 @@ from flask_limiter.util import get_remote_address
 from config import Config
 
 import sse
-from db import get_db_connection, init_db, get_placeholder, is_postgres, DB_INITIALIZED
+import db
+from db import get_db_connection, init_db, get_placeholder, is_postgres
 from services.notification_service import trigger_alert_notifications
 from models import (
     create_alert,
@@ -234,10 +235,11 @@ def create_app() -> Flask:
 
     
     # Auto-seed admin user
-    try:
-        with app.app_context():
-            with get_db_connection(app.config["DATABASE_PATH"]) as conn:
-                cursor = conn.cursor()
+    if db.DB_INITIALIZED:
+        try:
+            with app.app_context():
+                with get_db_connection(app.config["DATABASE_PATH"]) as conn:
+                    cursor = conn.cursor()
                 
                 # Delete existing admin@example.com to reset it
                 cursor.execute("DELETE FROM users WHERE email = 'admin@example.com'")
@@ -263,8 +265,8 @@ def create_app() -> Flask:
                 
                 models.create_user(conn, "admin@example.com", pwd_hash, role="admin", org_id=default_org_id)
                 print(f"Admin user auto-seeded (or reset) successfully with org {default_org_id}.")
-    except Exception as e:
-        print(f"Notice: Initialization error during auto-seed: {e}")
+        except Exception as e:
+            print(f"Notice: Initialization error during auto-seed: {e}")
 
     # Redundant checker removed
 
@@ -2037,6 +2039,10 @@ app = create_app()
 
 # AI Model Startup & Retraining
 def setup_ai():
+    if not db.DB_INITIALIZED:
+        logging.warning("AI setup skipped: Database not initialized.")
+        return
+        
     with app.app_context():
         try:
             with get_db_connection(app.config["DATABASE_PATH"]) as conn:
