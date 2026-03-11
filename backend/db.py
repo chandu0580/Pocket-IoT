@@ -41,14 +41,19 @@ def get_db_connection(url_or_path: str) -> Generator[Union[sqlite3.Connection, A
             if IS_PSYCOPG3:
                 # Modern psycopg (v3) usage
                 import psycopg
-                conn = psycopg.connect(db_url, row_factory=dict_row_factory)
+                conn = psycopg.connect(db_url, row_factory=dict_row_factory, connect_timeout=10)
             else:
                 # Legacy psycopg2 usage
                 import psycopg2
-                conn = psycopg2.connect(db_url, cursor_factory=dict_row_factory)
+                conn = psycopg2.connect(db_url, cursor_factory=dict_row_factory, connect_timeout=10)
 
             conn.autocommit = False
         except Exception as e:
+            error_msg = str(e)
+            if "Network is unreachable" in error_msg or "2406:" in error_msg:
+                logging.error("❌ IPv6 Connection Error detected!")
+                logging.error("💡 Render does not support IPv6. You MUST use the Supabase Connection Pooler URL (Host ending in .pooler.supabase.com) in your Render settings.")
+            
             logging.error("❌ Postgres connection failed: %s", e)
             raise
 
