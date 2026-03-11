@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: Pocket-IoT
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 1 --threads 2
+    rootDir: backend
+    runtime: python
+    pythonVersion: 3.11.9
