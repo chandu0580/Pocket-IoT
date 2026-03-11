@@ -268,8 +268,13 @@ def _create_base_tables(cursor: Any, is_pg: bool) -> None:
         )""",
     ]
 
+    logging.info("Building base schema...")
     for stmt in stmts:
-        _migrate(cursor, stmt)
+        if "CREATE TABLE IF NOT EXISTS" in stmt:
+            # Base table creation MUST succeed
+            cursor.execute(stmt)
+        else:
+            _migrate(cursor, stmt)
 
 
 # ──────────────────────────── Step 2: Migrations ─────────────────────────────
@@ -376,7 +381,6 @@ def _create_indexes(cursor: Any) -> None:
 
 
 # ─────────────────────────────── Public API ──────────────────────────────────
-
 DB_INITIALIZED = False
 
 def init_db(url_or_path: str) -> None:
@@ -401,8 +405,12 @@ def init_db(url_or_path: str) -> None:
             _create_indexes(cursor)
 
             conn.commit()
+
+            # ── Verification
+            cursor.execute("SELECT 1 FROM devices LIMIT 1")
             DB_INITIALIZED = True
-            logging.info("✅ Database initialization complete and committed.")
+            logging.info("✅ Database initialization complete. 'devices' table verified.")
     except Exception as e:
+        DB_INITIALIZED = False
         logging.exception("❌ Critical failure during database initialization")
         raise e
