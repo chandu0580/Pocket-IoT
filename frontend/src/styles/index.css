@@ -1,0 +1,179 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -- Custom Properties -- */
+:root {
+  --accent: #6366f1;
+  --accent2: #22d3ee;
+  --green: #22c55e;
+  --red: #ef4444;
+  --amber: #f59e0b;
+  --indigo-glow: rgba(99, 102, 241, 0.15);
+  --emerald-glow: rgba(16, 185, 129, 0.15);
+  --rose-glow: rgba(244, 63, 94, 0.15);
+}
+
+/* -- Base -- */
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  @apply bg-slate-950 text-slate-100 antialiased overflow-x-hidden;
+  background: radial-gradient(circle at 50% 0%, #0f172a 0%, #020617 100%);
+}
+
+/* -- Glassmorphism Card -- */
+.glass-card {
+  @apply rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl transition-all duration-300;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+.glass-card-hover:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+  transform: translateY(-4px);
+}
+
+.glass-card-hover {
+  @apply transition-all duration-300;
+}
+
+.card {
+  @apply rounded-2xl border border-slate-800/60 bg-slate-900/70 p-5;
+  backdrop-filter: blur(16px);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0.7) 100%);
+}
+
+.card-title {
+  @apply text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2;
+}
+
+/* -- Metric Card -- */
+.metric-card {
+  @apply glass-card glass-card-hover p-6 cursor-default select-none;
+}
+
+.metric-value {
+  @apply text-4xl font-black tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent;
+}
+
+.metric-label {
+  @apply text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mt-2;
+}
+
+/* -- Online / Offline Pill -- */
+.pill-online {
+  @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider shadow-lg;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+
+.pill-offline {
+  @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider shadow-lg;
+  background: rgba(100, 116, 139, 0.1);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  color: #94a3b8;
+}
+
+/* -- Live pulse dot -- */
+.live-dot {
+  @apply inline-block w-2.5 h-2.5 rounded-full bg-emerald-500;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+  animation: pulse-live 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.offline-dot {
+  @apply inline-block w-2.5 h-2.5 rounded-full bg-slate-600;
+}
+
+@keyframes pulse-live {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 0.6;
+  }
+}
+
+/* -- Battery Bar -- */
+.battery-track {
+  @apply h-1.5 w-full rounded-full bg-slate-900 border border-white/5 overflow-hidden;
+}
+
+.battery-fill {
+  @apply h-full rounded-full transition-all duration-1000;
+}
+
+.battery-high {
+  background: linear-gradient(90deg, #10b981, #34d399);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+.battery-mid {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+.battery-low {
+  background: linear-gradient(90deg, #f43f5e, #fb7185);
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.3);
+  animation: battery-blink 1.5s infinite;
+}
+
+@keyframes battery-blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* -- Sidebar Active -- */
+.nav-link {
+  @apply flex items-center gap-3 rounded-xl px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-500 transition-all;
+}
+
+.nav-link:hover {
+  @apply bg-white/5 text-slate-200;
+}
+
+.nav-link.active {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.1) 0%, transparent 100%);
+  border-left: 2px solid #6366f1;
+  @apply text-indigo-400 bg-white/[0.02];
+}
+
+/* -- Page Animations -- */
+.page-enter {
+  animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* -- Grid Pattern -- */
+.bg-grid {
+  background-size: 40px 40px;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}

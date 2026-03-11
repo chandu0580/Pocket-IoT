@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#0d1117" />
+    <title>PocketIoT Sensor</title>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0d1117;
+            --surface: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.1);
+            --accent: #6366f1;
+            --accent2: #22d3ee;
+            --green: #22c55e;
+            --red: #ef4444;
+            --amber: #f59e0b;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --radius: 16px;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100dvh;
+            overflow-x: hidden;
+        }
+
+        /* ── Gradient Header ── */
+        .header {
+            background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 50%, #042f2e 100%);
+            padding: 28px 20px 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse 80% 60% at 50% -20%, rgba(99, 102, 241, 0.3), transparent);
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            position: relative;
+        }
+
+        .logo span {
+            color: var(--accent2);
+        }
+
+        .tagline {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 4px;
+            position: relative;
+        }
+
+        /* ── Live Badge ── */
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--green);
+            margin-top: 12px;
+            position: relative;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulse-dot 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: scale(0.8);
+            }
+        }
+
+        /* ── Container ── */
+        .container {
+            padding: 20px 16px;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        /* ── Card ── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px;
+            margin-bottom: 14px;
+            backdrop-filter: blur(12px);
+        }
+
+        .card-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-icon {
+            font-size: 16px;
+        }
+
+        /* ── Setup Screen ── */
+        #setup-screen {
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .input-group {
+            margin-bottom: 14px;
+        }
+
+        .input-label {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px;
+            display: block;
+            font-weight: 600;
+        }
+
+        .input-field {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: var(--text);
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-field:focus {
+            border-color: var(--accent);
+        }
+
+        .input-field::placeholder {
+            color: var(--muted);
+        }
+
+        .select-field {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: var(--text);
+            font-size: 16px;
+            outline: none;
+        }
+
+        .select-field option {
+            background: #1e293b;
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            border: none;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #818cf8);
+            color: white;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--red);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:active {
+            transform: scale(0.97);
+        }
+
+        /* ── Live Screen ── */
+        #live-screen {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .device-name-display {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .status-chip {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .status-chip.sending {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--green);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .status-chip.paused {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--amber);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        /* ── Sensor Values ── */
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .sensor-val {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+            padding: 12px 10px;
+            text-align: center;
+        }
+
+        .sensor-val-label {
+            font-size: 10px;
+            color: var(--muted);
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .sensor-val-num {
+            font-size: 20px;
+            font-weight: 800;
+            margin-top: 4px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .val-x {
+            color: #38bdf8;
+        }
+
+        .val-y {
+            color: #a78bfa;
+        }
+
+        .val-z {
+            color: #34d399;
+        }
+
+        /* ── Battery bar ── */
+        .battery-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .battery-bar-bg {
+            flex: 1;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .battery-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.5s, background 0.5s;
+        }
+
+        .battery-pct {
+            font-size: 18px;
+            font-weight: 800;
+            min-width: 52px;
+            text-align: right;
+        }
+
+        /* ── GPS ── */
+        .gps-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .gps-item {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+            padding: 12px;
+        }
+
+        .gps-item-label {
+            font-size: 10px;
+            color: var(--muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .gps-item-val {
+            font-size: 15px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: var(--accent2);
+        }
+
+        /* ── Log ── */
+        .log-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 11px;
+            font-family: monospace;
+            color: var(--muted);
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin-bottom: 3px;
+        }
+
+        .log-ok {
+            color: var(--green);
+        }
+
+        .log-err {
+            color: var(--red);
+        }
+
+        /* ── Count ── */
+        .send-count {
+            text-align: center;
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 12px;
+        }
+
+        .send-count strong {
+            color: var(--accent2);
+            font-size: 20px;
+        }
+
+        /* ── Error banner ── */
+        .error-banner {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #fca5a5;
+            margin-bottom: 14px;
+            display: none;
+        }
+
+        /* ── Info note ── */
+        .info-note {
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 12px;
+            color: #a5b4fc;
+            margin-top: 6px;
+        }
+
+        .magnitude-big {
+            text-align: center;
+            font-size: 42px;
+            font-weight: 900;
+            color: var(--accent2);
+            line-height: 1;
+            margin: 4px 0;
+        }
+
+        .magnitude-label {
+            text-align: center;
+            font-size: 11px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ╔══════════════ HEADER ══════════════╗ -->
+    <div class="header">
+        <div class="logo">Pocket<span>IoT</span></div>
+        <div class="tagline">Mobile Sensor Node</div>
+        <div style="display:flex;justify-content:center">
+            <div class="live-badge" id="live-badge" style="display:none">
+                <div class="live-dot"></div> TRANSMITTING
+            </div>
+        </div>
+    </div>
+
+    <!-- ╔══════════════ SETUP SCREEN ══════════════╗ -->
+    <div class="container">
+        <div id="setup-screen">
+            <div class="error-banner" id="error-banner"></div>
+
+            <div class="card">
+                <div class="card-title"><span class="card-icon">📱</span> Device Setup</div>
+
+                <div id="reg-status" style="text-align:center;padding:20px 0">
+                    <div style="font-size:32px;margin-bottom:12px">⏳</div>
+                    <div style="font-size:15px;font-weight:700;color:var(--accent2)">Registering device…</div>
+                    <div style="font-size:12px;color:var(--muted);margin-top:6px">Connecting to PocketIoT backend</div>
+                </div>
+
+                <div id="reg-success" style="display:none;text-align:center;padding:16px 0">
+                    <div style="font-size:36px;margin-bottom:10px">✅</div>
+                    <div style="font-size:15px;font-weight:800;color:var(--green)">Device Registered Successfully</div>
+                    <div id="reg-device-id" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+                    <div style="font-size:12px;color:var(--accent2);margin-top:4px;font-weight:700">Telemetry Streaming
+                        Started</div>
+                </div>
+
+                <div id="reg-error" style="display:none;text-align:center;padding:16px 0">
+                    <div style="font-size:32px;margin-bottom:10px">❌</div>
+                    <div style="font-size:14px;font-weight:700;color:var(--red)">Registration Failed</div>
+                    <div id="reg-error-msg" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+                    <div class="input-group" style="margin-top:14px;text-align:left">
+                        <label class="input-label" for="server-url">Backend Server URL</label>
+                        <input id="server-url" class="input-field" type="url" value="" placeholder="Detecting server..." />
+                    </div>
+                    <button class="btn btn-primary" style="margin-top:10px" onclick="autoRegister()">
+                        🔄 Retry Connection
+                    </button>
+                </div>
+
+                <div class="info-note" style="margin-top:14px">
+                    📡 Scan the QR code from the dashboard to auto-connect.
+                    Camera &amp; sensors require <strong>HTTPS</strong> — the ngrok link handles this automatically.
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ╔══════════════ LIVE SCREEN ══════════════╗ -->
+        <div id="live-screen">
+            <div class="status-header">
+                <div class="device-name-display" id="live-device-name"></div>
+                <div class="status-chip sending" id="status-chip">● SENDING</div>
+            </div>
+
+            <!-- Magnitude -->
+            <div class="card">
+                <div class="card-title"><span class="card-icon">⚡</span> Motion Magnitude</div>
+                <div class="magnitude-big" id="magnitude-val">0.00</div>
+                <div class="magnitude-label">|a| = √(x² + y² + z²) m/s²</div>
+            </div>
+
+            <!-- Orientation -->
+            <div class="card">
+                <div class="card-title"><span class="card-icon">🔄</span> Orientation (TILT)</div>
+                <div class="sensor-grid">
+                    <div class="sensor-val">
+                        <div class="sensor-val-label">Pitch</div>
+                        <div class="sensor-val-num" id="val-pitch">0°</div>
+                    </div>
+                    <div class="sensor-val">
+                        <div class="sensor-val-label">Roll</div>
+                        <div class="sensor-val-num" id="val-roll">0°</div>
+                    </div>
+                    <div class="sensor-val">
+                        <div class="sensor-val-label">Yaw</div>
+                        <div class="sensor-val-num" id="val-yaw">0°</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Environmental -->
+            <div class="card">
+                <div class="card-title"><span class="card-icon">🌿</span> Environmental</div>
+                <div class="sensor-grid">
+                    <div class="sensor-val">
+                        <div class="sensor-val-label">Light</div>
+                        <div class="sensor-val-num" id="val-light">0 lx</div>
+                    </div>
+                    <div class="sensor-val">
+                        <div class="sensor-val-label">Noise</div>
+                        <div class="sensor-val-num" id="val-noise">0 dB</div>
+                    </div>
+                    <div class="sensor-val">
+                        <div class="sensor-val-label">Pressure</div>
+                        <div class="sensor-val-num" id="val-pressure">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Camera Snapshot -->
+            <div class="card">
+                <div class="card-title"><span class="card-icon">📷</span> Camera Streaming</div>
+                <div style="text-align:center">
+                    <video id="video-preview" autoplay playsinline muted
+                        style="width:100%; border-radius:8px; display:none"></video>
+                    <canvas id="snapshot-canvas" style="display:none"></canvas>
+                    <div id="camera-status" style="font-size:12px; color:var(--muted)">Camera stream inactive</div>
+                </div>
+            </div>
+
+            <!-- ... existing cards ... -->
+            <!-- Accelerometer -->
+            <div class="card">
+                <div class="card-title"><span class="card-icon">📐</span> Accelerometer (m/s²)</div>
+                <div class="sensor-grid">
+                    <div class="sensor-val">
+                        <div class="sensor-val-label">X-axis</div>
+                        <div class="sensor-val-num val-x" id="val-x">0.00</div>
+                    </div>
+                    <div class="sensor-val">
+                        <div class="sensor-val-label">Y-axis</div>
+                        <div class="sensor-val-num val-y" id="val-y">0.00</div>
+                    </div>
+                    <div class="sensor-val">
+                        <div class="sensor-val-label">Z-axis</div>
+                        <div class="sensor-val-num val-z" id="val-z">0.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Battery -->
+            <div class="card">
+                <div class="card-title"><span class="card-icon">🔋</span> Battery</div>
+                <div class="battery-row">
+                    <div class="battery-bar-bg">
+                        <div class="battery-bar-fill" id="battery-fill" style="width:100%;background:#22c55e"></div>
+                    </div>
+                    <div class="battery-pct" id="battery-pct" style="color:#22c55e">100%</div>
+                </div>
+            </div>
+
+            <!-- GPS -->
+            <div class="card">
+                <div class="card-title"><span class="card-icon">📍</span> GPS Location</div>
+                <div class="gps-row">
+                    <div class="gps-item">
+                        <div class="gps-item-label">Latitude</div>
+                        <div class="gps-item-val" id="gps-lat">—</div>
+                    </div>
+                    <div class="gps-item">
+                        <div class="gps-item-label">Longitude</div>
+                        <div class="gps-item-val" id="gps-lon">—</div>
+                    </div>
+                    <div class="gps-item">
+                        <div class="gps-item-label">Accuracy</div>
+                        <div class="gps-item-val" id="gps-acc">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transmission Log -->
+            <div class="card">
+                <div class="card-title"><span class="card-icon">📡</span> Transmission Log</div>
+                <div class="log-box" id="log-box"></div>
+            </div>
+
+            <div class="send-count">
+                Transmissions: <strong id="send-count">0</strong>
+            </div>
+
+            <br />
+            <button class="btn btn-danger" onclick="stopSending()">⏹ Stop & Disconnect</button>
+        </div>
+    </div>
+
+    <script>
+        // ─── Security Redirect ────────────────────────────────────────────────
+        // Force HTTPS for non-local connections (required for Camera/Sensors)
+        if (window.location.protocol === 'http:' && 
+            !['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname)) {
+            console.log("Redirecting to secure HTTPS...");
+            window.location.replace(window.location.href.replace('http:', 'https:'));
+        }
+
+        // ─── State ────────────────────────────────────────────────────────────
+        let deviceId = null;
+        let deviceApiKey = null;
+        let deviceToken = null;
+        // serverUrl is ALWAYS derived from the page origin (the ngrok URL when scanned via QR).
+        // It is NEVER read from localStorage to avoid stale localhost values.
+        let serverUrl = window.location.origin;
+        let sendInterval = 2;
+        let intervalHandle = null;
+        let gpsWatchId = null;
+        let commandIntervalHandle = null;
+        let sendCount = 0;
+
+        let accel = { x: 0, y: 0, z: 0 };
+        let battery = 100;
+        let gps = { lat: null, lon: null, acc: null };
+
+        // ─── Data Smoothing Buffers ───────────────────────────────────────────
+        const SMOOTHING_WINDOW = 5;
+        let accelHistoryX = [];
+        let accelHistoryY = [];
+        let accelHistoryZ = [];
+
+        function getAverage(arr) {
+            if (arr.length === 0) return 0;
+            const sum = arr.reduce((a, b) => a + b, 0);
+            return sum / arr.length;
+        }
+
+        // ─── Persist / Restore ────────────────────────────────────────────────
+        function loadSaved() {
+            const saved = localStorage.getItem('pocketiot_device');
+            if (saved) {
+                try {
+                    const d = JSON.parse(saved);
+                    deviceId = d.deviceId || null;
+                    deviceApiKey = d.apiKey || null;
+                    deviceToken = d.deviceToken || null;
+                    // NOTE: serverUrl is intentionally NOT read from localStorage.
+                    // It always equals window.location.origin so the phone always
+                    // talks to the server it was actually reached from (ngrok URL).
+                } catch (_) { }
+            }
+        }
+        loadSaved();
+
+        // ─── Auto-Registration ────────────────────────────────────────────────
+        // QR Pairing handler — called when ?pair=TOKEN is in the URL
+        async function pairViaQR(pairToken) {
+            showRegProgress();
+            try {
+                const res = await fetch(serverUrl + '/api/device/pair', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'any'
+                    },
+                    body: JSON.stringify({ pair_token: pairToken }),
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || 'HTTP ' + res.status);
+                }
+                const data = await res.json();
+                deviceId = data.device_id;
+                deviceApiKey = data.api_key;
+                const dname = data.device_name || ('QR-Device-' + deviceId);
+                // Persist device identity (NOT serverUrl — always use window.location.origin)
+                localStorage.setItem('pocketiot_device', JSON.stringify({ deviceId, apiKey: deviceApiKey }));
+                localStorage.setItem('pocketiot_device_name', dname);
+                history.replaceState({}, '', window.location.pathname); // strip ?pair= from URL
+                showRegSuccess(deviceId, dname);
+                await startStreaming();
+            } catch (e) {
+                showRegError('QR Pairing failed: ' + e.message);
+            }
+        }
+
+        async function autoRegister() {
+            // Check for QR pairing token in URL first
+            const pairToken = new URLSearchParams(window.location.search).get('pair');
+            if (pairToken) {
+                localStorage.removeItem('pocketiot_device');
+                localStorage.removeItem('pocketiot_device_name');
+                deviceId = null; deviceApiKey = null; deviceToken = null;
+                await pairViaQR(pairToken);
+                return;
+            }
+
+            // Try to restore saved device first
+            if (deviceId && deviceApiKey) {
+                showRegSuccess(deviceId, localStorage.getItem('pocketiot_device_name') || 'Device');
+                await startStreaming();
+                return;
+            }
+
+
+            // Resolve server URL (try error field first, then default)
+            const urlField = document.getElementById('server-url');
+            if (urlField && urlField.value.trim()) serverUrl = urlField.value.trim().replace(/\/$/, '');
+
+            showRegProgress();
+
+            // Generate a device name from browser info
+            const ua = navigator.userAgent;
+            let brand = 'Mobile';
+            if (/iPhone/.test(ua)) brand = 'iPhone';
+            else if (/Android/.test(ua)) brand = 'Android';
+            else if (/iPad/.test(ua)) brand = 'iPad';
+            const device_name = brand + '-' + Math.floor(Math.random() * 9000 + 1000);
+
+            try {
+                const res = await fetch(serverUrl + '/api/register-mobile-device', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'any'
+                    },
+                    body: JSON.stringify({ device_name, device_type: 'mobile' }),
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || 'HTTP ' + res.status);
+                }
+                const data = await res.json();
+                deviceId = data.device_id;
+                deviceApiKey = data.api_key;
+
+                // Persist for next page load (serverUrl not stored — always window.location.origin)
+                localStorage.setItem('pocketiot_device', JSON.stringify({
+                    deviceId, apiKey: deviceApiKey
+                }));
+                localStorage.setItem('pocketiot_device_name', data.device_name || device_name);
+                
+                // Allow some time for localStorage to propagate before telemetry loop starts
+                await new Promise(r => setTimeout(r, 500));
+                
+                showRegSuccess(deviceId, data.device_name || device_name);
+                await startStreaming();
+
+            } catch (e) {
+                showRegError(e.message);
+            }
+        }
+
+        function showRegProgress() {
+            document.getElementById('reg-status').style.display = 'block';
+            document.getElementById('reg-success').style.display = 'none';
+            document.getElementById('reg-error').style.display = 'none';
+        }
+
+        function showRegSuccess(id, name) {
+            document.getElementById('reg-status').style.display = 'none';
+            document.getElementById('reg-success').style.display = 'block';
+            document.getElementById('reg-error').style.display = 'none';
+            document.getElementById('reg-device-id').textContent = 'Device ID: ' + id + '  ·  ' + name;
+        }
+
+        function showRegError(msg) {
+            document.getElementById('reg-status').style.display = 'none';
+            document.getElementById('reg-success').style.display = 'none';
+            document.getElementById('reg-error').style.display = 'block';
+            document.getElementById('reg-error-msg').textContent = msg;
+        }
+
+        let isStreaming = false;
+        async function startStreaming() {
+            if (isStreaming) return;
+            isStreaming = true;
+            
+            // Clear any existing intervals just in case
+            if (intervalHandle) clearInterval(intervalHandle);
+            if (commandIntervalHandle) clearInterval(commandIntervalHandle);
+
+            sendInterval = 2;
+            await setupSensors();
+            // Switch to live screen after a brief delay so success message is visible
+            setTimeout(() => {
+                document.getElementById('setup-screen').style.display = 'none';
+                document.getElementById('live-screen').style.display = 'block';
+                document.getElementById('live-badge').style.display = 'inline-flex';
+                const name = localStorage.getItem('pocketiot_device_name') || ('Device ' + deviceId);
+                document.getElementById('live-device-name').textContent = '📱 ' + name;
+                appendLog('✅ Registered – ID=' + deviceId + ' streaming started');
+                sendData();
+                intervalHandle = setInterval(sendData, sendInterval * 1000);
+                commandIntervalHandle = setInterval(checkCommands, 5000);
+            }, 1200);
+        }
+
+        // Kick off auto-registration when the page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            // Requirement 2 & 3: Detect insecure connections
+            const isInsecure = location.protocol !== "https:" && 
+                             location.hostname !== "localhost" && 
+                             location.hostname !== "127.0.0.1";
+            
+            if (isInsecure) {
+                const banner = document.getElementById('error-banner');
+                if (banner) {
+                    banner.innerHTML = `
+                        <div style="font-weight:800; color:#fff; margin-bottom:4px">⚠️ INSECURE CONNECTION</div>
+                        Browsers block Camera and Sensors on HTTP. Please use the <strong>HTTPS</strong> link from ngrok or production.
+                    `;
+                    banner.style.display = 'block';
+                }
+                appendLog('⚠️ Warning: Sensors may be blocked due to HTTP', 'err');
+            }
+            autoRegister();
+        });
+
+
+        // ─── Sensor Setup ─────────────────────────────────────────────────────
+        let gyro = { x: 0, y: 0, z: 0 };
+        let orientation = { pitch: 0, roll: 0, yaw: 0 };
+        let light = 0;
+        let noise = 0;
+        let pressure = null;
+        let videoStream = null;
+        let cameraActive = false;
+        let hasRealSensorData = false;
+
+        function setupAccelerometer() {
+            const handler = (e) => {
+                const a = e.accelerationIncludingGravity || e.acceleration;
+                if (a && a.x !== null) {
+                    hasRealSensorData = true;
+                    accelHistoryX.push(a.x || 0);
+                    accelHistoryY.push(a.y || 0);
+                    accelHistoryZ.push(a.z || 0);
+
+                    if (accelHistoryX.length > SMOOTHING_WINDOW) accelHistoryX.shift();
+                    if (accelHistoryY.length > SMOOTHING_WINDOW) accelHistoryY.shift();
+                    if (accelHistoryZ.length > SMOOTHING_WINDOW) accelHistoryZ.shift();
+
+                    accel.x = getAverage(accelHistoryX);
+                    accel.y = getAverage(accelHistoryY);
+                    accel.z = getAverage(accelHistoryZ);
+
+                    updateAccelUI();
+                }
+
+                // Gyroscope
+                if (e.rotationRate) {
+                    gyro.x = e.rotationRate.alpha || 0;
+                    gyro.y = e.rotationRate.beta || 0;
+                    gyro.z = e.rotationRate.gamma || 0;
+                }
+            };
+
+            if (typeof DeviceMotionEvent !== 'undefined' &&
+                typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission()
+                    .then(perm => {
+                        if (perm === 'granted') window.addEventListener('devicemotion', handler);
+                        else appendLog('⚠️ Motion permission denied', 'err');
+                    })
+                    .catch(() => appendLog('⚠️ Motion permission error', 'err'));
+            } else if (typeof DeviceMotionEvent !== 'undefined') {
+                window.addEventListener('devicemotion', handler);
+            }
+        }
+
+        function setupOrientation() {
+            const handler = (e) => {
+                orientation.pitch = e.beta || 0;  // -180 to 180
+                orientation.roll = e.gamma || 0;   // -90 to 90
+                orientation.yaw = e.alpha || 0;    // 0 to 360
+
+                document.getElementById('val-pitch').textContent = orientation.pitch.toFixed(1) + '°';
+                document.getElementById('val-roll').textContent = orientation.roll.toFixed(1) + '°';
+                document.getElementById('val-yaw').textContent = orientation.yaw.toFixed(1) + '°';
+            };
+
+            if (typeof DeviceOrientationEvent !== 'undefined' &&
+                typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(perm => {
+                        if (perm === 'granted') window.addEventListener('deviceorientation', handler);
+                    });
+            } else {
+                window.addEventListener('deviceorientation', handler);
+            }
+        }
+
+        async function setupMicrophone() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const analyser = audioContext.createAnalyser();
+                const microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+                analyser.fftSize = 256;
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+
+                setInterval(() => {
+                    analyser.getByteFrequencyData(dataArray);
+                    let sum = 0;
+                    for (let i = 0; i < bufferLength; i++) {
+                        sum += dataArray[i];
+                    }
+                    noise = Math.round(sum / bufferLength);
+                    document.getElementById('val-noise').textContent = noise + ' dB';
+                }, 500);
+            } catch (e) {
+                appendLog('⚠️ Mic error: ' + e.message, 'err');
+            }
+        }
+
+        function setupLightSensor() {
+            if ('AmbientLightSensor' in window) {
+                // Requirement 1, 2 & 4: Detection logic as per production requirements
+                const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+                const isSecure = location.protocol === "https:" || isLocal;
+
+                if (!isSecure) {
+                    appendLog('⚠️ Ambient Light Sensor blocked: HTTPS required', 'err');
+                    return;
+                }
+
+                try {
+                    const sensor = new AmbientLightSensor();
+                    sensor.onreading = () => {
+                        light = sensor.illuminance;
+                        document.getElementById('val-light').textContent = light.toFixed(0) + ' lx';
+                    };
+                    sensor.start();
+                } catch (e) {
+                    appendLog('⚠️ Light sensor error', 'err');
+                }
+            } else {
+                // Mock for UI
+                setInterval(() => {
+                    light = Math.random() * 100;
+                    document.getElementById('val-light').textContent = light.toFixed(0) + ' lx';
+                }, 3000);
+            }
+        }
+
+        async function setupCamera() {
+            const video = document.getElementById('video-preview');
+            const status = document.getElementById('camera-status');
+
+            // Requirement 1, 2 & 4: Detection logic as per production requirements
+            const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+            const isSecure = location.protocol === "https:" || isLocal;
+
+            if (!isSecure) {
+                const currentUrl = window.location.href;
+                const secureUrl = currentUrl.replace('http:', 'https:');
+                status.innerHTML = `
+                    <div style="color:var(--red);font-weight:800;font-size:18px">⛔ HTTPS REQUIRED</div>
+                    <div style="margin-top:10px; color:var(--muted)">
+                        You are on: <code style="background:rgba(0,0,0,0.3);padding:2px 4px;border-radius:4px">${location.protocol}</code>
+                    </div>
+                    <div style="margin-top:12px; background:rgba(239,68,68,0.1); padding:15px; border-radius:12px; font-size:13px; line-height:1.5">
+                        Browsers block Camera/Sensors on non-secure links to protect your privacy.
+                        <br><br>
+                        <strong>👉 Please use the button below to switch to the secure version:</strong>
+                    </div>
+                    <button class="btn btn-primary" style="margin-top:18px; width:100%" 
+                            onclick="window.location.replace('${secureUrl}')">
+                        🔓 Switch to HTTPS
+                    </button>
+                `;
+                appendLog('⚠️ Camera blocked: Protocol must be HTTPS', 'err');
+                return;
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                status.innerHTML = '⚠️ Camera not supported by this browser.<br>Try Chrome or Firefox.';
+                return;
+            }
+
+            status.textContent = '📷 Requesting camera...';
+            try {
+                // Prefer rear/environment camera on phones, allow any on desktop
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 640 }, height: { ideal: 480 } }
+                });
+                video.srcObject = videoStream;
+                video.style.display = 'block';
+                status.textContent = '✅ Camera Active';
+                cameraActive = true;
+                appendLog('📷 Camera started', 'ok');
+            } catch (e) {
+                // First fallback: any camera
+                try {
+                    videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    video.srcObject = videoStream;
+                    video.style.display = 'block';
+                    status.textContent = '✅ Camera Active (front)';
+                    cameraActive = true;
+                    appendLog('📷 Camera started (fallback)', 'ok');
+                } catch (err) {
+                    if (err.name === 'NotAllowedError') {
+                        status.textContent = '❌ Camera Permission Denied – allow it in your browser settings';
+                    } else if (err.name === 'NotFoundError') {
+                        status.textContent = '❌ No camera found on this device';
+                    } else {
+                        status.textContent = '❌ Camera error: ' + err.message;
+                    }
+                    appendLog('⚠️ Camera: ' + err.name + ': ' + err.message, 'err');
+                }
+            }
+        }
+
+
+        function capturePhoto() {
+            if (!cameraActive) return null;
+            const canvas = document.getElementById('snapshot-canvas');
+            const video = document.getElementById('video-preview');
+            canvas.width = video.videoWidth / 2; // Reduce size for streaming
+            canvas.height = video.videoHeight / 2;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL('image/jpeg', 0.5); // 50% quality
+        }
+
+        async function setupBattery() {
+            if (!navigator.getBattery) {
+                appendLog('⚠️ Battery API not supported', 'err');
+                return;
+            }
+            try {
+                const b = await navigator.getBattery();
+                const updateBattery = () => {
+                    battery = Math.round(b.level * 100);
+                    updateBatteryUI();
+                    console.log("Battery:", battery);
+                };
+                updateBattery();
+                b.addEventListener('levelchange', updateBattery);
+                b.addEventListener('chargingchange', updateBattery);
+
+                // Keep polling every 30s as requested in previous instruction but not explicitly in this one's example
+                setInterval(updateBattery, 30000);
+            } catch (e) {
+                appendLog('⚠️ Battery error: ' + e.message, 'err');
+            }
+        }
+
+        // Returns a Promise that resolves after the first GPS fix is obtained.
+        // Uses getCurrentPosition for an immediate one-shot read, then starts watchPosition.
+        function setupGPS() {
+            return new Promise((resolve) => {
+                if (!('geolocation' in navigator)) {
+                    appendLog('⚠️ GPS not available on this device', 'err');
+                    resolve();
+                    return;
+                }
+
+                const opts = {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 10000
+                };
+
+                gpsWatchId = navigator.geolocation.watchPosition(
+                    (pos) => {
+                        gps.lat = pos.coords.latitude;
+                        gps.lon = pos.coords.longitude;
+                        gps.acc = pos.coords.accuracy;
+                        updateGpsUI();
+
+                        // Resolve the first time we get a fix
+                        resolve();
+                    },
+                    (err) => {
+                        appendLog('⚠️ GPS ERROR: ' + err.message, 'err');
+                        resolve();
+                    },
+                    opts
+                );
+            });
+        }
+
+        // ─── UI Update Helpers ────────────────────────────────────────────────
+        function updateAccelUI() {
+            document.getElementById('val-x').textContent = accel.x.toFixed(2);
+            document.getElementById('val-y').textContent = accel.y.toFixed(2);
+            document.getElementById('val-z').textContent = accel.z.toFixed(2);
+            const mag = Math.sqrt(accel.x ** 2 + accel.y ** 2 + accel.z ** 2);
+            document.getElementById('magnitude-val').textContent = mag.toFixed(2);
+        }
+
+        function updateBatteryUI() {
+            const pct = Math.max(0, Math.min(100, battery));
+            const color = pct > 50 ? '#22c55e' : pct > 20 ? '#f59e0b' : '#ef4444';
+            document.getElementById('battery-fill').style.width = pct + '%';
+            document.getElementById('battery-fill').style.background = color;
+            document.getElementById('battery-pct').textContent = pct.toFixed(0) + '%';
+            document.getElementById('battery-pct').style.color = color;
+        }
+
+        function updateGpsUI() {
+            document.getElementById('gps-lat').textContent = gps.lat !== null ? gps.lat.toFixed(5) : '—';
+            document.getElementById('gps-lon').textContent = gps.lon !== null ? gps.lon.toFixed(5) : '—';
+            document.getElementById('gps-acc').textContent = gps.acc !== null ? gps.acc.toFixed(0) + 'm' : '—';
+        }
+
+        function appendLog(msg, cls = 'ok') {
+            const box = document.getElementById('log-box');
+            const el = document.createElement('div');
+            el.className = 'log-entry log-' + cls;
+            el.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+            box.appendChild(el);
+            box.scrollTop = box.scrollHeight;
+            while (box.children.length > 20) box.removeChild(box.firstChild);
+        }
+
+        // ─── Send Data ────────────────────────────────────────────────────────
+        let failureCount = 0;
+        const MAX_FAILURES = 5;
+
+        async function sendData() {
+            if (!deviceId || (!deviceApiKey && !deviceToken)) return;
+
+            if (!navigator.onLine) {
+                document.getElementById('status-chip').textContent = '● OFFLINE';
+                document.getElementById('status-chip').className = 'status-chip paused';
+                return;
+            }
+
+            const payload = {
+                device_id: deviceId,
+                x: accel.x,
+                y: accel.y,
+                z: accel.z,
+                gyro_x: gyro.x,
+                gyro_y: gyro.y,
+                gyro_z: gyro.z,
+                pitch: orientation.pitch,
+                roll: orientation.roll,
+                yaw: orientation.yaw,
+                battery: battery,
+                latitude: gps.lat,
+                longitude: gps.lon,
+                speed: gps.speed,
+                ambient_light: light,
+                noise_level: noise,
+                pressure: pressure,
+                battery_health: "Good",
+                storage_usage: 65.5,
+                network_strength: "Strong",
+                os_info: navigator.platform,
+                camera_frame: capturePhoto(),
+                timestamp: new Date().toISOString(),
+            };
+
+            try {
+                const res = await fetch(serverUrl + '/api/send-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'any',
+                        'Authorization': deviceApiKey
+                            ? 'DeviceKey ' + deviceApiKey
+                            : 'Bearer ' + deviceToken,
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (res.ok) {
+                    sendCount++;
+                    failureCount = 0;
+                    document.getElementById('send-count').textContent = sendCount;
+                    document.getElementById('status-chip').textContent = '● SENDING';
+                    document.getElementById('status-chip').className = 'status-chip sending';
+                    appendLog('✅ #' + sendCount + ' sent | bat=' + battery.toFixed(0) + '%', 'ok');
+                } else if (res.status === 401) {
+                    // STOP GHOST LOOPS: This is the critical fix for user's alternating 401/201
+                    console.error('Unauthorized. Killing telemetry loop.');
+                    if (intervalHandle) clearInterval(intervalHandle);
+                    isStreaming = false;
+                    document.getElementById('status-chip').textContent = '● AUTH ERROR';
+                    document.getElementById('status-chip').className = 'status-chip paused';
+                    appendLog('❌ Auth Error: Please re-pair your device.', 'err');
+                    return;
+                } else {
+                    failureCount++;
+                    const err = await res.json().catch(() => ({}));
+                    appendLog('❌ Error (' + res.status + '): ' + (err.error || 'Server error'), 'err');
+                }
+            } catch (e) {
+                failureCount++;
+                appendLog('❌ Network Error: ' + e.message, 'err');
+            }
+        }
+
+        // ─── Commands ────────────────────────────────────────────────────────
+        async function checkCommands() {
+            if (!deviceId || (!deviceApiKey && !deviceToken)) return;
+            try {
+                const res = await fetch(serverUrl + '/api/devices/' + deviceId + '/commands', {
+                    headers: {
+                        'Authorization': deviceApiKey
+                            ? 'DeviceKey ' + deviceApiKey
+                            : 'Bearer ' + deviceToken
+                    }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                const commands = data.commands || [];
+
+                for (const cmd of commands) {
+                    appendLog('⚡ Command: ' + cmd.command, 'ok');
+                    await executeCommand(cmd);
+                }
+            } catch (e) {
+                console.error('Command check failed', e);
+            }
+        }
+
+        async function executeCommand(cmd) {
+            let status = 'executed';
+            try {
+                switch (cmd.command) {
+                    case 'vibrate':
+                        if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+                        break;
+                    case 'flashlight':
+                        if (videoStream) {
+                            const track = videoStream.getVideoTracks()[0];
+                            const caps = track.getCapabilities();
+                            if (caps.torch) await track.applyConstraints({ advanced: [{ torch: true }] });
+                            setTimeout(() => track.applyConstraints({ advanced: [{ torch: false }] }), 3000);
+                        }
+                        break;
+                    case 'alarm':
+                        const audio = new Audio('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg');
+                        audio.play();
+                        break;
+                    case 'start_webrtc':
+                        status = 'executed';
+                        await startWebRTC();
+                        break;
+                    case 'photo':
+                        // Manual snapshot trigger
+                        await sendData();
+                        break;
+                    case 'ping':
+                        alert('Ping received from PocketIoT dashboard 🔔');
+                        break;
+                    case 'refresh':
+                        location.reload();
+                        break;
+                    default:
+                        console.warn('Unknown command', cmd.command);
+                }
+            } catch (e) {
+                status = 'failed';
+                appendLog('❌ Cmd failed: ' + e.message, 'err');
+            }
+
+            // Report back
+            try {
+                await fetch(serverUrl + '/api/commands/' + cmd.id, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'any',
+                        'Authorization': deviceApiKey
+                            ? 'DeviceKey ' + deviceApiKey
+                            : 'Bearer ' + deviceToken
+                    },
+                    body: JSON.stringify({ status })
+                });
+            } catch (e) {
+                console.error('Failed to report command status', e);
+            }
+        }
+
+        // ─── WebRTC Signaling ───
+        let peerConnection = null;
+        let signalingStream = null;
+
+        async function startWebRTC() {
+            if (peerConnection) peerConnection.close();
+
+            appendLog('📡 Initializing WebRTC P2P Uplink...');
+            peerConnection = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+
+            // Add video tracks
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, videoStream);
+                });
+            } else {
+                await setupCamera();
+                if (videoStream) {
+                    videoStream.getTracks().forEach(track => {
+                        peerConnection.addTrack(track, videoStream);
+                    });
+                }
+            }
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    fetch(serverUrl + '/api/webrtc/ice', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            device_id: deviceId,
+                            candidate: event.candidate,
+                            side: 'mobile'
+                        })
+                    });
+                }
+            };
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+
+            // Establish signaling channel BEFORE sending offer to avoid race conditions
+            setupSignaling();
+
+            await fetch(serverUrl + '/api/webrtc/offer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: deviceId, offer })
+            });
+        }
+
+        function setupSignaling() {
+            if (signalingStream) return;
+
+            // Listen for answer/ice via SSE
+            signalingStream = new EventSource(serverUrl + '/api/stream');
+
+            signalingStream.addEventListener('webrtc_answer', async (e) => {
+                const data = JSON.parse(e.data);
+                if (data.device_id !== deviceId) return;
+
+                appendLog('🤝 Dashboard Linked (WebRTC)');
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+            });
+
+            signalingStream.addEventListener('webrtc_ice', async (e) => {
+                const data = JSON.parse(e.data);
+                if (data.device_id !== deviceId || data.side === 'mobile') return;
+
+                if (peerConnection && peerConnection.remoteDescription) {
+                    try {
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                    } catch (err) {
+                        console.error('ICE Candidate Error', err);
+                    }
+                }
+            });
+        }
+
+        // Legacy manual startSending kept for backward compatibility
+        async function startSending() {
+            // If auto-reg already succeeded, just stream
+            if (deviceId && deviceApiKey) { return startStreaming(); }
+            // Otherwise try auto-register with updated server URL
+            const urlField = document.getElementById('server-url');
+            if (urlField) serverUrl = urlField.value.trim().replace(/\/$/, '');
+            await autoRegister();
+        }
+
+        async function setupSensors() {
+            setupAccelerometer();
+            setupOrientation();
+            setupLightSensor();
+            await setupMicrophone();
+            await setupCamera();
+            await setupBattery();
+            await setupGPS();
+
+            // Mock sensors for laptops/desktops testing
+            setTimeout(() => {
+                if (!hasRealSensorData) {
+                    appendLog('💻 Simulating sensors for desktop...', 'ok');
+                    setInterval(() => {
+                        const t = Date.now() / 1000;
+                        accel.x = Math.sin(t * 2) * 2;
+                        accel.y = 9.8 + Math.cos(t * 3) * 1;
+                        accel.z = Math.sin(t * 1.5) * 2;
+                        updateAccelUI();
+
+                        orientation.pitch = Math.sin(t) * 45; // -45 to 45 degrees
+                        orientation.roll = Math.cos(t * 0.8) * 45;
+                        orientation.yaw = (t * 20) % 360;
+
+                        document.getElementById('val-pitch').textContent = orientation.pitch.toFixed(1) + '°';
+                        document.getElementById('val-roll').textContent = orientation.roll.toFixed(1) + '°';
+                        document.getElementById('val-yaw').textContent = orientation.yaw.toFixed(1) + '°';
+                    }, 50); // fast updates for smooth 3D animation
+                }
+            }, 3000);
+        }
+
+        function stopSending() {
+            if (intervalHandle) { clearInterval(intervalHandle); intervalHandle = null; }
+            if (commandIntervalHandle) { clearInterval(commandIntervalHandle); commandIntervalHandle = null; }
+            if (gpsWatchId !== null) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+            window.removeEventListener('devicemotion', () => { });
+            window.removeEventListener('deviceorientation', () => { });
+            // Clear stored registration so next load re-registers
+            localStorage.removeItem('pocketiot_device');
+            localStorage.removeItem('pocketiot_device_name');
+            deviceId = null; deviceApiKey = null; deviceToken = null; sendCount = 0;
+
+            document.getElementById('live-screen').style.display = 'none';
+            document.getElementById('live-badge').style.display = 'none';
+            document.getElementById('setup-screen').style.display = 'block';
+            showRegProgress();
+            // Re-trigger auto-register for fresh device
+            autoRegister();
+        }
+
+        function showError(msg) {
+            showRegError(msg);
+        }
+        function hideError() {
+            // no-op for backwards compat
+        }
+    </script>
+</body>
+
+</html>
