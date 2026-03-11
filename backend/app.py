@@ -208,20 +208,25 @@ def create_app() -> Flask:
     # Suppress verbose Flask startup logs
     logging.getLogger('werkzeug').disabled = True
 
-    # Resilient Limiter storage selection
-    storage_uri = app.config.get("REDIS_URL", "memory://")
-    if storage_uri.startswith("redis://"):
+    # Resilient Limiter storage selection (Render-optimized)
+    # Only use Redis if explicitly configured via environment variable
+    redis_url = os.environ.get("REDIS_URL")
+    if redis_url:
+        storage_uri = redis_url
         try:
             import redis
             r = redis.from_url(storage_uri, socket_timeout=2)
             r.ping()
             logging.info("✅ Redis connected for Rate Limiting.")
         except Exception:
-            logging.warning("⚠️ Redis connection failed (is it running?). Falling back to memory storage.")
+            logging.warning("⚠️ Redis URL provided but connection failed. Falling back to memory://")
             storage_uri = "memory://"
+    else:
+        # No REDIS_URL env var? Just use memory.
+        storage_uri = "memory://"
 
     limiter = Limiter(
-        get_remote_address,
+        key_func=get_remote_address,
         app=app,
         storage_uri=storage_uri,
         default_limits=["10000 per day", "2000 per hour"]
