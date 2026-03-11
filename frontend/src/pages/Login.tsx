@@ -14,12 +14,10 @@ const Login: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // console.log("LOGIN REQUEST:", { email, password });
-        // console.log("API_BASE_URL:", API_BASE_URL);
-
         setLoading(true);
         setError('');
         try {
+            console.log("🚀 Attempting connection to:", API_BASE_URL);
             const response = await login(email, password);
             window.dispatchEvent(new Event('storage'));
             navigate('/dashboard');
@@ -62,9 +60,11 @@ const Login: React.FC = () => {
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-blue-500 transition-colors" />
                                 <input
                                     type="email"
+                                    name="email"
+                                    id="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="admin@pocketiot.com"
+                                    placeholder="admin@example.com"
                                     className="w-full bg-[#1c1c21] border border-white/5 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300"
                                     required
                                 />
@@ -77,6 +77,8 @@ const Login: React.FC = () => {
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-blue-500 transition-colors" />
                                 <input
                                     type="password"
+                                    name="password"
+                                    id="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="••••••••"
