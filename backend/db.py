@@ -6,15 +6,22 @@ import sqlite3
 from contextlib import contextmanager
 from typing import Generator, Any, Union
 
-# Try importing PostgreSQL driver
+# ─── Resilient Database Driver Import (V2 & V3 Support) ──────────────────────
 try:
     import psycopg2
-    from psycopg2.extras import RealDictCursor
+    from psycopg2.extras import RealDictCursor as dict_row_factory
     HAS_POSTGRES = True
-except Exception:
-    psycopg2 = None
-    RealDictCursor = None
-    HAS_POSTGRES = False
+    IS_PSYCOPG3 = False
+except ImportError:
+    try:
+        import psycopg
+        from psycopg.rows import dict_row as dict_row_factory
+        HAS_POSTGRES = True
+        IS_PSYCOPG3 = True
+    except ImportError:
+        HAS_POSTGRES = False
+        dict_row_factory = None
+        IS_PSYCOPG3 = False
 
 
 # ─────────────────────────────── Connection ──────────────────────────────────
@@ -24,14 +31,25 @@ def get_db_connection(url_or_path: str) -> Generator[Union[sqlite3.Connection, A
 
     # PostgreSQL
     if url_or_path.startswith(("postgres://", "postgresql://")):
+        if not HAS_POSTGRES:
+            logging.error("❌ No Postgres driver found! Please ensure 'psycopg[binary]' is in requirements.txt")
+            raise ImportError("No Postgres driver installed (psycopg or psycopg2).")
 
         db_url = url_or_path.replace("postgres://", "postgresql://", 1)
 
         try:
-            conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor)
+            if IS_PSYCOPG3:
+                # Modern psycopg (v3) usage
+                import psycopg
+                conn = psycopg.connect(db_url, row_factory=dict_row_factory)
+            else:
+                # Legacy psycopg2 usage
+                import psycopg2
+                conn = psycopg2.connect(db_url, cursor_factory=dict_row_factory)
+
             conn.autocommit = False
         except Exception as e:
-            logging.error("Postgres connection failed: %s", e)
+            logging.error("❌ Postgres connection failed: %s", e)
             raise
 
         try:
