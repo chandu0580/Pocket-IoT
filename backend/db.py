@@ -92,8 +92,13 @@ def get_db_connection(url_or_path: str) -> Generator[Union[sqlite3.Connection, A
 
 def get_placeholder(conn: Any) -> str:
     """Return '?' for SQLite and '%s' for PostgreSQL."""
-    if HAS_POSTGRES and hasattr(psycopg2, "extensions") and isinstance(conn, psycopg2.extensions.connection):
-        return "%s"
+    if HAS_POSTGRES:
+        if IS_PSYCOPG3:
+            return "%s" # psycopg v3 always uses %s
+        else:
+            import psycopg2
+            if isinstance(conn, psycopg2.extensions.connection):
+                return "%s"
     return "?"
 
 
@@ -119,9 +124,14 @@ def column_exists(cursor: Any, table: str, column: str) -> bool:
 
 def _is_postgres(conn: Any) -> bool:
     """Return True if the connection is a PostgreSQL connection."""
-    if not HAS_POSTGRES or psycopg2 is None:
+    if not HAS_POSTGRES:
         return False
-    return isinstance(conn, psycopg2.extensions.connection)
+    if IS_PSYCOPG3:
+        import psycopg
+        return isinstance(conn, psycopg.Connection)
+    else:
+        import psycopg2
+        return isinstance(conn, psycopg2.extensions.connection)
 
 
 
