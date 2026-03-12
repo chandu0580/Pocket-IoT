@@ -2166,7 +2166,6 @@ monitor_thread.start()
 setup_ai()
 
 if __name__ == "__main__":
-    global PUBLIC_BASE_URL
     port = int(os.getenv("PORT", "5000"))
     if not os.environ.get("APP_URL") and not os.environ.get("RENDER"):
         try:
