@@ -397,13 +397,14 @@ def init_db(url_or_path: str) -> None:
 
             # ── Step 1: Base tables
             _create_base_tables(cursor, is_pg)
+            conn.commit()
 
             # ── Step 2: Migrations
             _run_migrations(cursor)
+            conn.commit()
 
             # ── Step 3: Indexes
             _create_indexes(cursor)
-
             conn.commit()
 
             # ── Verification
