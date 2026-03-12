@@ -358,6 +358,11 @@ const App: React.FC = () => {
               <Analytics />
             </Shell>
           } />
+          <Route path="/devices/:id/analytics" element={
+            <Shell isAuthenticated={isAuthenticated} sseConnected={sseConnected} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} hasNewNotif={hasNewNotif} setHasNewNotif={setHasNewNotif} toastAlerts={toastAlerts} dismissToast={dismissToast} lastSseNotif={lastSseNotif} activeOrg={activeOrg}>
+              <Analytics />
+            </Shell>
+          } />
           <Route path="/teams" element={
             <Shell isAuthenticated={isAuthenticated} sseConnected={sseConnected} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} hasNewNotif={hasNewNotif} setHasNewNotif={setHasNewNotif} toastAlerts={toastAlerts} dismissToast={dismissToast} lastSseNotif={lastSseNotif} activeOrg={activeOrg}>
               <TeamsPage />

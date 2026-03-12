@@ -398,6 +398,7 @@ def _create_indexes(cursor: Any) -> None:
 
     # sensor_data indexes
     _migrate(cursor, "CREATE INDEX IF NOT EXISTS idx_sensor_device_time ON sensor_data (device_id, timestamp)")
+    _migrate(cursor, "CREATE INDEX IF NOT EXISTS sensor_data_device_time ON sensor_data (device_id, timestamp)")
 
     if column_exists(cursor, "sensor_data", "motion_magnitude"):
         _migrate(cursor, "CREATE INDEX IF NOT EXISTS idx_sensor_magnitude ON sensor_data (device_id, motion_magnitude)")

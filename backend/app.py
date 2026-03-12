@@ -97,6 +97,31 @@ MOBILE_HTML = os.path.join(os.path.dirname(__file__), "templates", "mobile_app.h
 def _row(row):
     return {key: row[key] for key in row.keys()}
 
+def parse_iso(ts_str):
+    if not ts_str: return datetime.utcnow()
+    # Standardize to ISO format that fromisoformat understands
+    ts = ts_str.replace("Z", "+00:00").replace(" ", "T")
+    try:
+        return datetime.fromisoformat(ts).replace(tzinfo=None)
+    except:
+        try:
+            # Fallback for older formats or missing parts
+            return datetime.strptime(ts.split(".")[0], "%Y-%m-%dT%H:%M:%S")
+        except:
+            return datetime.utcnow()
+
+def get_cutoff_ts(range_str):
+    now = datetime.utcnow()
+    if range_str == "1h":
+        delta = timedelta(hours=1)
+    elif range_str == "24h":
+        delta = timedelta(days=1)
+    elif range_str == "7d":
+        delta = timedelta(days=7)
+    else:
+        delta = timedelta(days=1)
+    return (now - delta).isoformat() + "Z"
+
 
 import threading
 import time
@@ -638,6 +663,167 @@ def create_app() -> Flask:
             return jsonify(locations), 200
         except Exception:
             logging.exception("Failed to fetch device locations")
+            return jsonify({"error": "Internal server error"}), 500
+
+    @app.route("/api/devices/<int:device_id>/motion-history", methods=["GET"])
+    @token_required
+    def api_device_motion_history(device_id):
+        range_str = request.args.get("range", "24h")
+        cutoff = get_cutoff_ts(range_str)
+        try:
+            with get_db_connection(app.config["DATABASE_PATH"]) as conn:
+                p = get_placeholder(conn)
+                c = conn.cursor()
+                c.execute(f"""
+                    SELECT timestamp, motion_magnitude 
+                    FROM sensor_data 
+                    WHERE device_id = {p} AND timestamp >= {p}
+                    ORDER BY timestamp ASC
+                """, (device_id, cutoff))
+                rows = c.fetchall()
+                
+                return jsonify({
+                    "timestamps": [dict(r)["timestamp"] for r in rows],
+                    "motion_values": [dict(r)["motion_magnitude"] for r in rows]
+                }), 200
+        except Exception:
+            logging.exception("Failed to fetch motion history")
+            return jsonify({"error": "Internal server error"}), 500
+
+    @app.route("/api/devices/<int:device_id>/noise-history", methods=["GET"])
+    @token_required
+    def api_device_noise_history(device_id):
+        range_str = request.args.get("range", "24h")
+        cutoff = get_cutoff_ts(range_str)
+        try:
+            with get_db_connection(app.config["DATABASE_PATH"]) as conn:
+                p = get_placeholder(conn)
+                c = conn.cursor()
+                c.execute(f"""
+                    SELECT timestamp, noise_level 
+                    FROM sensor_data 
+                    WHERE device_id = {p} AND timestamp >= {p}
+                    ORDER BY timestamp ASC
+                """, (device_id, cutoff))
+                rows = c.fetchall()
+                
+                return jsonify({
+                    "timestamps": [dict(r)["timestamp"] for r in rows],
+                    "noise_values": [dict(r)["noise_level"] for r in rows]
+                }), 200
+        except Exception:
+            logging.exception("Failed to fetch noise history")
+            return jsonify({"error": "Internal server error"}), 500
+
+    @app.route("/api/devices/<int:device_id>/anomalies", methods=["GET"])
+    @token_required
+    def api_device_anomalies(device_id):
+        try:
+            with get_db_connection(app.config["DATABASE_PATH"]) as conn:
+                p = get_placeholder(conn)
+                c = conn.cursor()
+                c.execute(f"""
+                    SELECT created_at as timestamp, magnitude as anomaly_score, severity 
+                    FROM alerts 
+                    WHERE device_id = {p} AND type = 'anomaly'
+                    ORDER BY created_at DESC LIMIT 100
+                """, (device_id,))
+                rows = c.fetchall()
+                return jsonify([dict(r) for r in rows]), 200
+        except Exception:
+            logging.exception("Failed to fetch anomalies")
+            return jsonify({"error": "Internal server error"}), 500
+
+    @app.route("/api/devices/<int:device_id>/uptime", methods=["GET"])
+    @token_required
+    def api_device_uptime(device_id):
+        try:
+            with get_db_connection(app.config["DATABASE_PATH"]) as conn:
+                p = get_placeholder(conn)
+                c = conn.cursor()
+                
+                c.execute(f"SELECT created_at FROM devices WHERE id = {p}", (device_id,))
+                dev = c.fetchone()
+                if not dev: return jsonify({"error": "Device not found"}), 404
+                
+                # Get all timestamps to calculate gaps
+                c.execute(f"SELECT timestamp FROM sensor_data WHERE device_id = {p} ORDER BY timestamp ASC", (device_id,))
+                rows = c.fetchall()
+                
+                if not rows:
+                    return jsonify({"uptime_percentage": 100.0, "offline_events": 0, "total_runtime_hours": 0.0}), 200
+                
+                timestamps = [parse_iso(dict(r)["timestamp"]) for r in rows]
+                first_ts = timestamps[0]
+                last_ts = timestamps[-1]
+                now = datetime.utcnow()
+                
+                total_seconds = (now - first_ts).total_seconds()
+                if total_seconds <= 0: total_seconds = 1
+                
+                downtime = 0
+                offline_events = 0
+                threshold = 120 # matching mobile-node 120s offline detection
+                
+                for i in range(1, len(timestamps)):
+                    gap = (timestamps[i] - timestamps[i-1]).total_seconds()
+                    if gap > threshold:
+                        downtime += gap
+                        offline_events += 1
+                
+                time_since_last = (now - last_ts).total_seconds()
+                if time_since_last > threshold:
+                    downtime += time_since_last
+                    offline_events += 1
+                
+                uptime_pct = max(0.0, min(100.0, (1.0 - (downtime / total_seconds)) * 100.0))
+                
+                return jsonify({
+                    "uptime_percentage": round(uptime_pct, 1),
+                    "offline_events": offline_events,
+                    "total_runtime_hours": round(total_seconds / 3600, 1)
+                }), 200
+        except Exception:
+            logging.exception("Failed to calculate uptime")
+            return jsonify({"error": "Internal server error"}), 500
+
+    @app.route("/api/devices/<int:device_id>/telemetry-rate", methods=["GET"])
+    @token_required
+    def api_device_telemetry_rate(device_id):
+        range_str = request.args.get("range", "24h")
+        cutoff = get_cutoff_ts(range_str)
+        try:
+            with get_db_connection(app.config["DATABASE_PATH"]) as conn:
+                is_pg = is_postgres(conn)
+                p = get_placeholder(conn)
+                c = conn.cursor()
+                
+                if is_pg:
+                    sql = f"""
+                        SELECT date_trunc('minute', timestamp::timestamp) as minute, COUNT(*) as count 
+                        FROM sensor_data 
+                        WHERE device_id = {p} AND timestamp >= {p}
+                        GROUP BY minute
+                        ORDER BY minute ASC
+                    """
+                else:
+                    sql = f"""
+                        SELECT strftime('%Y-%m-%dT%H:%M:00Z', timestamp) as minute, COUNT(*) as count 
+                        FROM sensor_data 
+                        WHERE device_id = {p} AND timestamp >= {p}
+                        GROUP BY minute
+                        ORDER BY minute ASC
+                    """
+                
+                c.execute(sql, (device_id, cutoff))
+                rows = c.fetchall()
+                
+                return jsonify({
+                    "timestamps": [dict(r)["minute"] for r in rows],
+                    "packet_counts": [dict(r)["count"] for r in rows]
+                }), 200
+        except Exception:
+            logging.exception("Failed to fetch telemetry rate")
             return jsonify({"error": "Internal server error"}), 500
     @app.route("/api/devices/<int:device_id>/history", methods=["GET"])
     @token_required

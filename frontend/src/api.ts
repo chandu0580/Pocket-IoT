@@ -217,6 +217,21 @@ export const fetchAnalytics = (metric: string, range: string, deviceId?: number 
 
 export const fetchStats = () => get<Stats>("/api/stats");
 
+export const fetchMotionHistory = (deviceId: number, range: string = "24h") =>
+  get<{ timestamps: string[]; motion_values: number[] }>(`/api/devices/${deviceId}/motion-history?range=${range}`);
+
+export const fetchNoiseHistory = (deviceId: number, range: string = "24h") =>
+  get<{ timestamps: string[]; noise_values: number[] }>(`/api/devices/${deviceId}/noise-history?range=${range}`);
+
+export const fetchDeviceAnomalies = (deviceId: number) =>
+  get<{ timestamp: string; anomaly_score: number; severity: string }[]>(`/api/devices/${deviceId}/anomalies`);
+
+export const fetchDeviceUptime = (deviceId: number) =>
+  get<{ uptime_percentage: number; offline_events: number; total_runtime_hours: number }>(`/api/devices/${deviceId}/uptime`);
+
+export const fetchTelemetryRate = (deviceId: number, range: string = "24h") =>
+  get<{ timestamps: string[]; packet_counts: number[] }>(`/api/devices/${deviceId}/telemetry-rate?range=${range}`);
+
 export const clearAlerts = (deviceId?: number) =>
   fetch(`${API_BASE_URL}/api/alerts${deviceId !== undefined ? `?device_id=${deviceId}` : ""}`, {
     method: "DELETE",
