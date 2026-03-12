@@ -106,22 +106,22 @@ def get_placeholder(conn: Any) -> str:
 
 def _migrate(cursor: Any, stmt: str) -> None:
     """Execute a SQL statement, with informative logging for errors."""
-    is_pg = is_postgres(cursor.connection)
-    if is_pg:
-        cursor.execute("SAVEPOINT migrate_savepoint")
-        
     try:
         cursor.execute(stmt)
-        if is_pg:
-            cursor.execute("RELEASE SAVEPOINT migrate_savepoint")
     except Exception as e:
-        if is_pg:
-            cursor.execute("ROLLBACK TO SAVEPOINT migrate_savepoint")
-            
         err = str(e).lower()
+        
+        # If we are on Postgres, a failed command aborts the transaction.
+        # We MUST rollback to clear the "aborted" state and continue with next commands.
+        # This is safe because migrations are idempotent.
+        is_pg = is_postgres(cursor.connection)
+        if is_pg:
+            cursor.connection.rollback()
+
         # Silently ignore "already exists" errors which are common in idempotent migrations
         if "already exists" in err or "duplicate column" in err or "duplicate key" in err:
             return
+            
         logging.warning("Migration notice (non-critical): %s | Statement: %s", e, (stmt[:50] + "...") if len(stmt) > 50 else stmt)
 
 
@@ -279,11 +279,7 @@ def _create_base_tables(cursor: Any, is_pg: bool) -> None:
 
     logging.info("Building base schema...")
     for stmt in stmts:
-        if "CREATE TABLE IF NOT EXISTS" in stmt:
-            # Base table creation MUST succeed
-            cursor.execute(stmt)
-        else:
-            _migrate(cursor, stmt)
+        _migrate(cursor, stmt)
 
 
 # ──────────────────────────── Step 2: Migrations ─────────────────────────────
