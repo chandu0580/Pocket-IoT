@@ -8,8 +8,11 @@ from datetime import datetime, timezone
 # ──────────────────────────────────────────────────────────────────────────────
 # CONFIGURATION
 # ──────────────────────────────────────────────────────────────────────────────
-# Change this to your Render URL: e.g. "https://pocket-iot.onrender.com"
-BASE_URL = "http://localhost:5000" 
+# LIVE BACKEND (Render)
+BASE_URL = "https://pocket-iot.onrender.com" 
+
+# LOCAL BACKEND (Optional)
+# BASE_URL = "http://localhost:5000" 
 
 # You need a valid Device ID and Token from your dashboard
 DEVICE_ID = 1  

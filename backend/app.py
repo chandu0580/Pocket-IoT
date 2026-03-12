@@ -265,6 +265,19 @@ def create_app() -> Flask:
                     
                     models.create_user(conn, "admin@example.com", pwd_hash, role="admin", org_id=default_org_id)
                     print(f"Admin user auto-seeded (or reset) successfully with org {default_org_id}.")
+
+                    # Seed Demo Device for Simulator
+                    cursor.execute("SELECT id FROM devices WHERE device_token = 'device_1_token'")
+                    if not cursor.fetchone():
+                        print("Seeding demo device for simulator...")
+                        now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
+                        p = get_placeholder(conn)
+                        cursor.execute(
+                            f"INSERT INTO devices (name, device_token, organization_id, created_at) VALUES ({p}, {p}, {p}, {p})",
+                            ("demo-device", "device_1_token", default_org_id, now)
+                        )
+                        conn.commit()
+                        print("Demo device seeded successfully.")
         except Exception as e:
             print(f"Notice: Initialization error during auto-seed: {e}")
 
