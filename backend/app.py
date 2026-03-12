@@ -243,6 +243,7 @@ def create_app() -> Flask:
                 
                     # Delete existing variants to prevent confusion
                     cursor.execute("DELETE FROM users WHERE email IN ('admin@example.com', 'admin@pocketiot.com')")
+                    conn.commit()
                     
                     # Always ensure admin@pocketiot.com exists (matches the brand)
                     pwd_hash = bcrypt.hashpw("admin123".encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
@@ -340,12 +341,24 @@ def create_app() -> Flask:
                 print(f"Stored password hash: {user['password_hash']}")
             
             if not user:
+                print(f"❌ LOGIN FAILED: User {email} not found in DB")
                 return jsonify({"message": "Invalid credentials"}), 401
                 
             pwd_bytes = str(password).encode("utf-8")
-            hash_bytes = str(user["password_hash"]).encode("utf-8")
-            pwd_match = bcrypt.checkpw(pwd_bytes, hash_bytes)
-            print(f"Password match result (bcrypt.checkpw): {pwd_match}")
+            # Ensure the stored hash is properly encoded for bcrypt
+            stored_hash = user["password_hash"]
+            if isinstance(stored_hash, str):
+                hash_bytes = stored_hash.encode("utf-8")
+            else:
+                hash_bytes = stored_hash
+                
+            try:
+                pwd_match = bcrypt.checkpw(pwd_bytes, hash_bytes)
+            except Exception as e:
+                print(f"❌ Bcrypt error: {e}")
+                pwd_match = False
+
+            print(f"Password match result for {email}: {pwd_match}")
             
             if not pwd_match:
                 return jsonify({"message": "Invalid credentials"}), 401
