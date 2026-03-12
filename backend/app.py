@@ -241,14 +241,10 @@ def create_app() -> Flask:
                 with get_db_connection(app.config["DATABASE_PATH"]) as conn:
                     cursor = conn.cursor()
                 
-                    # Delete existing admin@example.com to reset it
-                    cursor.execute("DELETE FROM users WHERE email = 'admin@example.com'")
+                    # Delete existing variants to prevent confusion
+                    cursor.execute("DELETE FROM users WHERE email IN ('admin@example.com', 'admin@pocketiot.com')")
                     
-                    # Check if users table is empty to trigger auto-seed, or just recreate admin
-                    cursor.execute("SELECT COUNT(*) FROM users")
-                    count = cursor.fetchone()[0]
-                    
-                    # Always ensure admin@example.com exists
+                    # Always ensure admin@pocketiot.com exists (matches the brand)
                     pwd_hash = bcrypt.hashpw("admin123".encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
                     
                     # Ensure 'Default Organization' exists for multi-tenant isolation
@@ -263,7 +259,7 @@ def create_app() -> Flask:
                     
                     default_org_id = org_row[0] if org_row else None
                     
-                    models.create_user(conn, "admin@example.com", pwd_hash, role="admin", org_id=default_org_id)
+                    models.create_user(conn, "admin@pocketiot.com", pwd_hash, role="admin", org_id=default_org_id)
                     print(f"Admin user auto-seeded (or reset) successfully with org {default_org_id}.")
 
                     # Seed Demo Device for Simulator (Forcing ID=1 for hardcoded simulator defaults)
