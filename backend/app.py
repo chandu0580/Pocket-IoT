@@ -61,8 +61,6 @@ from ai_detector import detector
 load_dotenv()
 
 # ─── Global Public URL (set once at startup) ─────────────────────────────────
-# Priority: APP_URL env var → ngrok tunnel → LAN IP fallback
-# All QR pairing links use this so phones NEVER receive localhost URLs.
 PUBLIC_BASE_URL: str = ""
 
 # JWT Configuration
@@ -148,14 +146,23 @@ def create_app() -> Flask:
     else:
         app.config["DATABASE_PATH"] = db_url
     
-    # Ensure APP_URL is cleaned and standardized
-    app_url = os.getenv("APP_URL", "")
-    if app_url and not app_url.startswith("http"):
-        app_url = f"https://{app_url}"
-    os.environ["APP_URL"] = app_url.rstrip("/")
-    
-    app.config["SQLALCHEMY_DATABASE_URI"] = app.config["DATABASE_PATH"]
-    
+    # ── Resolve PUBLIC_BASE_URL (never localhost for pairing) ──
+    global PUBLIC_BASE_URL
+    _env_url = os.environ.get("APP_URL", "").strip().rstrip("/")
+    if not _env_url:
+        _env_url = os.environ.get("RENDER_EXTERNAL_URL", "").strip().rstrip("/")
+
+    if _env_url and _env_url.startswith("http"):
+        PUBLIC_BASE_URL = _env_url
+    else:
+        # Fallback for local pairing if not in strict production mode
+        try:
+            _lan = get_lan_ip()
+            PUBLIC_BASE_URL = f"http://{_lan}:5000"
+        except Exception:
+            PUBLIC_BASE_URL = "http://localhost:5000"
+
+    print(f"🚀 PUBLIC_BASE_URL: {PUBLIC_BASE_URL}")
     print(f"Starting backend with DATABASE_PATH: {app.config['DATABASE_PATH']}")
     
     # Force DB Initialization on Startup
@@ -2159,39 +2166,18 @@ monitor_thread.start()
 setup_ai()
 
 if __name__ == "__main__":
+    global PUBLIC_BASE_URL
     port = int(os.getenv("PORT", "5000"))
-
-    # ── Resolve PUBLIC_BASE_URL (never localhost) ──────────────────────────
-    # Priority 1: APP_URL env var (e.g. production / manually set ngrok URL)
-    _env_url = os.environ.get("APP_URL", "").strip().rstrip("/")
-
-    if _env_url and _env_url.startswith("http"):
-        PUBLIC_BASE_URL = _env_url
-        print(f"\n🌐  Using APP_URL: {PUBLIC_BASE_URL}")
-    else:
-        # Priority 2: auto-start ngrok tunnel
+    if not os.environ.get("APP_URL") and not os.environ.get("RENDER"):
         try:
             from pyngrok import ngrok as _ngrok, conf as _ngrok_conf
-
-            # Optionally set auth token from env
             _ngrok_token = os.environ.get("NGROK_AUTHTOKEN", "")
             if _ngrok_token:
                 _ngrok_conf.get_default().auth_token = _ngrok_token
-
             _tunnel = _ngrok.connect(port, bind_tls=True)
             PUBLIC_BASE_URL = _tunnel.public_url.rstrip("/")
-            os.environ["PUBLIC_BASE_URL"] = PUBLIC_BASE_URL
-            print(f"\n🚀  PocketIoT backend  →  http://0.0.0.0:{port}")
-            print(f"🌐  ngrok public URL   →  {PUBLIC_BASE_URL}")
-            print(f"📱  Mobile sensor app  →  {PUBLIC_BASE_URL}/mobile\n")
+            print(f"🌐 ngrok public URL: {PUBLIC_BASE_URL}")
         except Exception as _ngrok_err:
-            # Priority 3: LAN IP fallback (same-WiFi phones can still connect)
-            _lan = get_lan_ip()
-            PUBLIC_BASE_URL = f"http://{_lan}:{port}"
-            print(f"\n⚠️  ngrok unavailable ({_ngrok_err.__class__.__name__}): {_ngrok_err}")
-            print(f"🚀  PocketIoT backend  →  http://0.0.0.0:{port}")
-            print(f"📡  LAN access URL     →  {PUBLIC_BASE_URL}")
-            print(f"📱  Mobile sensor app  →  {PUBLIC_BASE_URL}/mobile")
-            print(f"   ⚠️  Phone must be on the same Wi-Fi network\n")
+            print(f"⚠️ ngrok fallback: {_ngrok_err}")
 
     app.run(host="0.0.0.0", port=port, threaded=True, debug=False)
