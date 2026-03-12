@@ -423,15 +423,17 @@ def init_db(url_or_path: str) -> None:
                     SELECT EXISTS (
                         SELECT FROM information_schema.tables 
                         WHERE table_name = 'devices'
-                    )
+                    ) AS exists_check
                 """)
                 row = cursor.fetchone()
                 
-                # Handle dict-like row factory from psycopg/psycopg2
-                if row and hasattr(row, 'values'):
-                    exists = list(row.values())[0]
-                elif row and isinstance(row, (tuple, list)):
-                    exists = row[0]
+                # Psycopg dict-like row access
+                if row and (isinstance(row, dict) or hasattr(row, '__getitem__')):
+                    try:
+                        exists = row["exists_check"]
+                    except (KeyError, TypeError):
+                        # Fallback for tuple row factory
+                        exists = row[0]
                 else:
                     exists = bool(row)
             else:
