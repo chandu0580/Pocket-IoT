@@ -106,9 +106,18 @@ def get_placeholder(conn: Any) -> str:
 
 def _migrate(cursor: Any, stmt: str) -> None:
     """Execute a SQL statement, with informative logging for errors."""
+    is_pg = is_postgres(cursor.connection)
+    if is_pg:
+        cursor.execute("SAVEPOINT migrate_savepoint")
+        
     try:
         cursor.execute(stmt)
+        if is_pg:
+            cursor.execute("RELEASE SAVEPOINT migrate_savepoint")
     except Exception as e:
+        if is_pg:
+            cursor.execute("ROLLBACK TO SAVEPOINT migrate_savepoint")
+            
         err = str(e).lower()
         # Silently ignore "already exists" errors which are common in idempotent migrations
         if "already exists" in err or "duplicate column" in err or "duplicate key" in err:
@@ -408,6 +417,7 @@ def init_db(url_or_path: str) -> None:
             conn.commit()
 
             # ── Verification (Safer Cross-Engine Check)
+            row = None
             if is_pg:
                 cursor.execute("""
                     SELECT EXISTS (
@@ -415,10 +425,19 @@ def init_db(url_or_path: str) -> None:
                         WHERE table_name = 'devices'
                     )
                 """)
-                exists = cursor.fetchone()[0]
+                row = cursor.fetchone()
+                
+                # Handle dict-like row factory from psycopg/psycopg2
+                if row and hasattr(row, 'values'):
+                    exists = list(row.values())[0]
+                elif row and isinstance(row, (tuple, list)):
+                    exists = row[0]
+                else:
+                    exists = bool(row)
             else:
                 cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='devices'")
-                exists = cursor.fetchone() is not None
+                row = cursor.fetchone()
+                exists = row is not None
 
             if not exists:
                 raise Exception("'devices' table not found after initialization")
