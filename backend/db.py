@@ -128,11 +128,24 @@ def _migrate(cursor: Any, stmt: str) -> None:
 
 
 def column_exists(cursor: Any, table: str, column: str) -> bool:
-    """Return True if the given column exists in the given table (SQLite only)."""
+    """Return True if the given column exists in the given table (cross-engine)."""
     try:
-        cursor.execute(f"PRAGMA table_info({table})")
-        cols = [row[1] for row in cursor.fetchall()]
-        return column in cols
+        if is_postgres(cursor.connection):
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = %s AND column_name = %s
+                )
+            """, (table, column))
+            row = cursor.fetchone()
+            if row and (isinstance(row, dict) or hasattr(row, '__getitem__')):
+                try: return bool(row["exists"])
+                except: return bool(row[0])
+            return bool(row)
+        else:
+            cursor.execute(f"PRAGMA table_info({table})")
+            cols = [row[1] for row in cursor.fetchall()]
+            return column in cols
     except Exception:
         return False
 
@@ -285,6 +298,8 @@ def _create_base_tables(cursor: Any, is_pg: bool) -> None:
     logging.info("Building base schema...")
     for stmt in stmts:
         _migrate(cursor, stmt)
+    # Final safety commit
+    cursor.connection.commit()
 
 
 # ──────────────────────────── Step 2: Migrations ─────────────────────────────
@@ -435,10 +450,9 @@ def init_db(url_or_path: str) -> None:
                 # Psycopg dict-like row access
                 if row and (isinstance(row, dict) or hasattr(row, '__getitem__')):
                     try:
-                        exists = row["exists_check"]
+                        exists = bool(row["exists_check"])
                     except (KeyError, TypeError):
-                        # Fallback for tuple row factory
-                        exists = row[0]
+                        exists = bool(row[0])
                 else:
                     exists = bool(row)
             else:
