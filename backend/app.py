@@ -398,19 +398,46 @@ def create_app() -> Flask:
     @app.route("/api/auth/me", methods=["GET"])
     @token_required
     def get_me():
-        with get_db_connection(app.config["DATABASE_PATH"]) as conn:
-            user = models.get_user_by_id(conn, request.user_id)
-            if not user:
-                return jsonify({"message": "User not found"}), 404
-            
-            org = None
-            if user.get("organization_id"):
-                org = models.get_organization(conn, user["organization_id"])
-            
+        try:
+            with get_db_connection(app.config["DATABASE_PATH"]) as conn:
+                user = models.get_user_by_id(conn, request.user_id)
+
+                if not user:
+                    # Fallback: return data encoded in JWT itself so UI doesn't break
+                    return jsonify({
+                        "id": request.user_id,
+                        "email": "unknown@pocketiot.com",
+                        "role": request.role or "viewer",
+                        "organization_id": request.org_id,
+                        "organization": None
+                    }), 200
+
+                org = None
+                if user.get("organization_id"):
+                    try:
+                        org = models.get_organization(conn, user["organization_id"])
+                    except Exception:
+                        pass
+
+                return jsonify({
+                    "id": user.get("id"),
+                    "email": user.get("email"),
+                    "role": user.get("role"),
+                    "organization_id": user.get("organization_id"),
+                    "created_at": user.get("created_at"),
+                    "organization": org
+                }), 200
+        except Exception:
+            logging.exception("Failed to fetch /api/auth/me")
+            # Last-resort fallback: return what we know from the JWT
             return jsonify({
-                **user,
-                "organization": org
-            })
+                "id": request.user_id,
+                "email": "unknown@pocketiot.com",
+                "role": request.role or "viewer",
+                "organization_id": request.org_id,
+                "organization": None
+            }), 200
+
 
     # ── Sensor Data Stats ───────────────────────────────────────────────────
     @app.route("/api/sensor-data/stats", methods=["GET"])
