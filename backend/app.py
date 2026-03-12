@@ -239,6 +239,7 @@ def create_app() -> Flask:
                     # Ensure 'Default Organization' exists for multi-tenant isolation
                     cursor.execute("SELECT id FROM organizations WHERE name = 'Default Organization'")
                     org_row = cursor.fetchone()
+                    
                     if not org_row:
                         print("Seeding 'Default Organization'...")
                         cursor.execute("INSERT INTO organizations (name, plan) VALUES ('Default Organization', 'Enterprise')")
@@ -246,14 +247,24 @@ def create_app() -> Flask:
                         cursor.execute("SELECT id FROM organizations WHERE name = 'Default Organization'")
                         org_row = cursor.fetchone()
                     
-                    default_org_id = org_row[0] if org_row else None
+                    # Robust ID extraction for dict cursors
+                    if org_row and (isinstance(org_row, dict) or hasattr(org_row, '__getitem__')):
+                        try:
+                            default_org_id = org_row["id"]
+                        except (KeyError, TypeError):
+                            default_org_id = org_row[0]
+                    else:
+                        default_org_id = org_row[0] if org_row else None
                     
-                    models.create_user(conn, "admin@pocketiot.com", pwd_hash, role="admin", org_id=default_org_id)
-                    print(f"Admin user auto-seeded (or reset) successfully with org {default_org_id}.")
-
-                    # Seed Demo Device for Simulator (Forcing ID=1 for hardcoded simulator defaults)
-                    cursor.execute("SELECT id FROM devices WHERE id = 1 OR device_token = 'device_1_token'")
+                    # Check if admin already exists to avoid redundant hashing/inserts
+                    cursor.execute("SELECT id FROM users WHERE email = 'admin@pocketiot.com'")
                     if not cursor.fetchone():
+                        pwd_hash = bcrypt.hashpw("admin123".encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+                        models.create_user(conn, "admin@pocketiot.com", pwd_hash, role="admin", org_id=default_org_id)
+                        print(f"✅ Admin user auto-seeded successfully with org {default_org_id}.")
+                    else:
+                        # Optional: Reset password if needed, but for now just log it
+                        print(f"✅ Admin user ready: admin@pocketiot.com (Org: {default_org_id})")
                         print("Seeding demo device (ID=1) for simulator...")
                         now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
                         p = get_placeholder(conn)
