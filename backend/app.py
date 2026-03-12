@@ -61,7 +61,7 @@ from ai_detector import detector
 load_dotenv()
 
 # ─── Global Public URL (set once at startup) ─────────────────────────────────
-PUBLIC_BASE_URL: str = ""
+PUBLIC_BASE_URL = ""
 
 # JWT Configuration
 JWT_SECRET = os.getenv("JWT_SECRET", "pocket_iot_enterprise_secure_key_32_bytes_minimum")
