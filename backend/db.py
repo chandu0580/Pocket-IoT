@@ -407,8 +407,22 @@ def init_db(url_or_path: str) -> None:
             _create_indexes(cursor)
             conn.commit()
 
-            # ── Verification
-            cursor.execute("SELECT 1 FROM devices LIMIT 1")
+            # ── Verification (Safer Cross-Engine Check)
+            if is_pg:
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_name = 'devices'
+                    )
+                """)
+                exists = cursor.fetchone()[0]
+            else:
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='devices'")
+                exists = cursor.fetchone() is not None
+
+            if not exists:
+                raise Exception("'devices' table not found after initialization")
+
             DB_INITIALIZED = True
             logging.info("✅ Database initialization complete. 'devices' table verified.")
     except Exception as e:

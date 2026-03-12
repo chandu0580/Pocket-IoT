@@ -241,30 +241,30 @@ def create_app() -> Flask:
                 with get_db_connection(app.config["DATABASE_PATH"]) as conn:
                     cursor = conn.cursor()
                 
-                # Delete existing admin@example.com to reset it
-                cursor.execute("DELETE FROM users WHERE email = 'admin@example.com'")
-                
-                # Check if users table is empty to trigger auto-seed, or just recreate admin
-                cursor.execute("SELECT COUNT(*) FROM users")
-                count = cursor.fetchone()[0]
-                
-                # Always ensure admin@example.com exists
-                pwd_hash = bcrypt.hashpw("admin123".encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-                
-                # Ensure 'Default Organization' exists for multi-tenant isolation
-                cursor.execute("SELECT id FROM organizations WHERE name = 'Default Organization'")
-                org_row = cursor.fetchone()
-                if not org_row:
-                    print("Seeding 'Default Organization'...")
-                    cursor.execute("INSERT INTO organizations (name, plan) VALUES ('Default Organization', 'Enterprise')")
-                    conn.commit()
+                    # Delete existing admin@example.com to reset it
+                    cursor.execute("DELETE FROM users WHERE email = 'admin@example.com'")
+                    
+                    # Check if users table is empty to trigger auto-seed, or just recreate admin
+                    cursor.execute("SELECT COUNT(*) FROM users")
+                    count = cursor.fetchone()[0]
+                    
+                    # Always ensure admin@example.com exists
+                    pwd_hash = bcrypt.hashpw("admin123".encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+                    
+                    # Ensure 'Default Organization' exists for multi-tenant isolation
                     cursor.execute("SELECT id FROM organizations WHERE name = 'Default Organization'")
                     org_row = cursor.fetchone()
-                
-                default_org_id = org_row[0] if org_row else None
-                
-                models.create_user(conn, "admin@example.com", pwd_hash, role="admin", org_id=default_org_id)
-                print(f"Admin user auto-seeded (or reset) successfully with org {default_org_id}.")
+                    if not org_row:
+                        print("Seeding 'Default Organization'...")
+                        cursor.execute("INSERT INTO organizations (name, plan) VALUES ('Default Organization', 'Enterprise')")
+                        conn.commit()
+                        cursor.execute("SELECT id FROM organizations WHERE name = 'Default Organization'")
+                        org_row = cursor.fetchone()
+                    
+                    default_org_id = org_row[0] if org_row else None
+                    
+                    models.create_user(conn, "admin@example.com", pwd_hash, role="admin", org_id=default_org_id)
+                    print(f"Admin user auto-seeded (or reset) successfully with org {default_org_id}.")
         except Exception as e:
             print(f"Notice: Initialization error during auto-seed: {e}")
 
