@@ -69,6 +69,7 @@ export interface AlertItem {
   id: number;
   device_id: number;
   device?: string;
+  device_name?: string;
   type: string;
   message: string;
   severity?: string;
@@ -486,7 +487,7 @@ export function isOnline(device: Device): boolean {
   if (!device.last_seen) return false;
   try {
     const ls = new Date(device.last_seen);
-    return (Date.now() - ls.getTime()) < 60_000;
+    return (Date.now() - ls.getTime()) < 120_000;
   } catch {
     return false;
   }

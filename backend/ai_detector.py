@@ -27,53 +27,54 @@ class AIDetector:
         self._initialized = True
         logging.info("AI Anomaly Detector initialized with IsolationForest.")
 
-    def train(self, magnitudes):
-        """Fit the model on historical motion magnitude data."""
-        if len(magnitudes) < 10:
-            print(f"DEBUG AI: Not enough data to train ({len(magnitudes)}/10 required).")
+    def train(self, features_list):
+        """Fit the model on historical multi-variate sensor data.
+        Expected features_list: list of [mag, noise, gx, gy, gz]
+        """
+        if len(features_list) < 10:
+            print(f"DEBUG AI: Not enough data to train ({len(features_list)}/10 required).")
             return
         
         with self.train_lock:
             try:
-                data = np.array(magnitudes).reshape(-1, 1)
+                data = np.array(features_list)
                 self.model.fit(data)
                 self.is_trained = True
-                print(f"DEBUG AI: Model trained successfully on {len(magnitudes)} points.")
+                print(f"DEBUG AI: Model trained successfully on {len(features_list)} points with 5 features.")
             except Exception:
                 logging.exception("AI Detector: Failed to train model.")
 
-    def predict(self, magnitude):
-        """Detect if a magnitude is anomalous. Returns (score, is_anomaly)."""
+    def predict(self, features):
+        """Detect if a sensor packet is anomalous. 
+        Features: [mag, noise, gx, gy, gz]
+        Returns (score, is_anomaly).
+        """
+        mag = features[0]
         # Always return a default result if not yet trained
         if not self.is_trained:
-            # Simple heuristic while model is warming up: anomalies > 20 m/s^2 (violent shaking)
-            is_anomaly = magnitude > 25.0
+            # Simple heuristic while model is warming up
+            is_anomaly = mag > 25.0
             return 0.0, is_anomaly
 
         try:
-            data = np.array([[magnitude]])
-            # decision_function returns anomaly score (negative values are outliers)
-            # We normalize it to 0-1 range where higher is "more anomalous"
+            data = np.array([features])
             raw_score = self.model.decision_function(data)[0]
-            # IsolationForest decision_function: lower is more anomalous
-            # Let's map it: score = max(0, -raw_score * 5) or similar
-            # A more robust way: use model.predict which returns -1 for anomaly
             prediction = self.model.predict(data)[0]
             norm_score = max(0.0, min(1.0, 0.5 - raw_score))
             is_anomaly = prediction == -1
             
             if is_anomaly:
-                print(f"DEBUG AI: ANOMALY DETECTED! mag={magnitude:.2f}, score={norm_score:.4f}, raw={raw_score:.4f}")
+                print(f"DEBUG AI: ANOMALY DETECTED! features={features}, score={norm_score:.4f}")
             
             return float(norm_score), bool(is_anomaly)
         except Exception:
             logging.exception("AI Detector: Prediction failed.")
             return 0.0, False
 
-    def add_to_buffer(self, magnitude):
-        """Add data point to rolling buffer for periodic retraining."""
+    def add_to_buffer(self, features):
+        """Add multi-variate data point to rolling buffer."""
         with self.train_lock:
-            self.history_buffer.append(magnitude)
+            self.history_buffer.append(features)
             if len(self.history_buffer) > self.max_buffer_size:
                 self.history_buffer.pop(0)
 

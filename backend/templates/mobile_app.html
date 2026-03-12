@@ -1278,6 +1278,26 @@
                             setTimeout(() => track.applyConstraints({ advanced: [{ torch: false }] }), 3000);
                         }
                         break;
+                    case 'toggle_camera':
+                        if (videoStream) {
+                            videoStream.getTracks().forEach(t => t.stop());
+                            videoStream = null;
+                            appendLog('📷 Camera Disabled');
+                        } else {
+                            await setupCamera();
+                            appendLog('📷 Camera Enabled');
+                        }
+                        break;
+                    case 'enable_sensors':
+                        if (!isStreaming) startStreaming();
+                        appendLog('📊 Sensors Enabled');
+                        break;
+                    case 'disable_sensors':
+                        isStreaming = false;
+                        if (intervalHandle) clearInterval(intervalHandle);
+                        intervalHandle = null;
+                        appendLog('⏸️ Sensors Disabled');
+                        break;
                     case 'alarm':
                         const audio = new Audio('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg');
                         audio.play();

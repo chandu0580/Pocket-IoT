@@ -73,7 +73,7 @@ const MotionChart: React.FC<Props> = ({ readings, deviceId, title = "Motion Tele
             <div className="card h-full flex flex-col">
                 <div className="card-title">📐 {title}</div>
                 <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
-                    No sensor data yet — start the mobile app or simulator.
+                    Waiting for first sensor packet — start the mobile app or simulator.
                 </div>
             </div>
         );

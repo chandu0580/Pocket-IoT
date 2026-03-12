@@ -463,7 +463,7 @@ const MapView: React.FC = () => {
                                             )}
                                         </div>
                                     ) : (
-                                        <div className="text-[10px] text-slate-600 font-semibold italic">Waiting for telemetry…</div>
+                                            <div className="text-[10px] text-slate-600 font-semibold italic">Waiting for first sensor packet…</div>
                                     )}
                                 </div>
                             );

@@ -12,6 +12,7 @@ import AlertRuleManager from "../components/AlertRuleManager";
 import TelemetryReplay from "../components/TelemetryReplay";
 import LiveCameraStream from "../components/LiveCameraStream";
 import DeviceMotion3D from "../components/DeviceMotion3D";
+import DeviceCommandPanel from "../components/DeviceCommandPanel";
 import { Settings as SettingsIcon, Save, X } from "lucide-react";
 
 const DeviceDetail: React.FC = () => {
@@ -195,13 +196,18 @@ const DeviceDetail: React.FC = () => {
                                 <EnvironmentalChart readings={allReadings} type="light" title="Luminescence (Illuminance)" />
                             </div>
 
-                            {/* Orientation Widget */}
+                            {/* Control & Energy Widget */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4">
-                                <OrientationWidget reading={latestReading} />
+                                <DeviceCommandPanel deviceId={deviceId} />
                                 <div className="card p-4">
                                     <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Battery Energy Management</div>
                                     <BatteryWidget battery={latestReading?.battery || 0} deviceName={device?.name || "Device"} />
                                 </div>
+                            </div>
+                            
+                            {/* Orientation Widget */}
+                            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 pb-4">
+                                <OrientationWidget reading={latestReading} />
                             </div>
                         </div>
 

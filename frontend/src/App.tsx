@@ -221,7 +221,7 @@ const App: React.FC = () => {
         return next.length > 200 ? next.slice(-200) : next;
       });
       statsCounter += 100;
-      if (statsCounter >= 1000) {
+      if (statsCounter >= 5000) {
         statsCounter = 0;
         void fetchStats().then(setStats).catch(() => { });
       }

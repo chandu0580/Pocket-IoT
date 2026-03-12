@@ -1116,9 +1116,16 @@ def create_app() -> Flask:
                 # but standard round() is better. Let's cast ndigits to int and number to float.
                 magnitude = float(f"{float(raw_mag):.2f}")
                 
-                # AI Anomaly Detection
-                score, is_anomaly = detector.predict(magnitude)
-                detector.add_to_buffer(magnitude)
+                # AI Anomaly Detection (Multi-feature)
+                features = [
+                    magnitude,
+                    float(noise_level or 0),
+                    float(gyro_x or 0),
+                    float(gyro_y or 0),
+                    float(gyro_z or 0)
+                ]
+                score, is_anomaly = detector.predict(features)
+                detector.add_to_buffer(features)
                 
                 sensor_id = create_sensor_data(
                     conn, device_id=device_id, x=x, y=y, z=z,
@@ -1241,29 +1248,23 @@ def create_app() -> Flask:
 
                 # AI Anomaly Processing
                 if is_anomaly:
-                    if magnitude < 20:
-                        severity = "NORMAL"
-                    elif magnitude < 40:
-                        severity = "WARNING"
-                    elif magnitude <= 80:
-                        severity = "CRITICAL"
-                    else:
-                        severity = "EMERGENCY"
+                    severity = "high"
+                    if magnitude > 40: severity = "critical"
                         
                     aid = create_alert(
-                        conn, device_id, "ai_motion_anomaly", 
-                        f"Abnormal motion pattern detected on {device['name']}", 
+                        conn, device_id, "anomaly", 
+                        f"AI Alert: Abnormal behavior detected on {device['name']}", 
                         timestamp,
                         severity=severity,
-                        magnitude=magnitude,
+                        magnitude=score, # Store anomaly score as requested
                         status="active"
                     )
                     alerts_created.append({
                         "id": aid,
-                        "type": "ai_motion_anomaly",
-                        "message": "Abnormal motion detected",
+                        "type": "anomaly",
+                        "message": "AI Anomaly Detected",
                         "severity": severity,
-                        "magnitude": magnitude,
+                        "magnitude": score,
                         "status": "active",
                         "created_at": timestamp.isoformat()
                     })
@@ -2173,18 +2174,21 @@ def setup_ai():
         try:
             with get_db_connection(app.config["DATABASE_PATH"]) as conn:
                 c = conn.cursor()
-                c.execute("SELECT motion_magnitude FROM sensor_data ORDER BY timestamp DESC LIMIT 2000")
+                c.execute("SELECT motion_magnitude, noise_level, gyro_x, gyro_y, gyro_z FROM sensor_data ORDER BY timestamp DESC LIMIT 2000")
                 rows = c.fetchall()
-                mags = []
+                training_data = []
                 for r in rows:
-                    val = list(r.values())[0] if isinstance(r, dict) else r[0]
-                    if val is not None:
-                        mags.append(val)
-                if mags:
-                    print(f"DEBUG AI: Pre-training with {len(mags)} historical points.")
-                    detector.train(mags)
-                    for m in mags:
-                        detector.add_to_buffer(m)
+                    if isinstance(r, dict):
+                        f = [r.get("motion_magnitude") or 0, r.get("noise_level") or 0, r.get("gyro_x") or 0, r.get("gyro_y") or 0, r.get("gyro_z") or 0]
+                    else:
+                        f = [r[0] or 0, r[1] or 0, r[2] or 0, r[3] or 0, r[4] or 0]
+                    training_data.append(f)
+                
+                if training_data:
+                    print(f"DEBUG AI: Pre-training with {len(training_data)} historical points (5 features).")
+                    detector.train(training_data)
+                    for f in training_data:
+                        detector.add_to_buffer(f)
                 else:
                     print("DEBUG AI: No historical data found for pre-training.")
         except Exception:
