@@ -60,8 +60,8 @@ from ai_detector import detector
 
 load_dotenv()
 
-# ─── Global Public URL (set once at startup) ─────────────────────────────────
-PUBLIC_BASE_URL = ""
+# ─── Global System Config (prevents global scope issues) ─────────────────────
+SYSTEM_CONFIG = {"PUBLIC_BASE_URL": ""}
 
 # JWT Configuration
 JWT_SECRET = os.getenv("JWT_SECRET", "pocket_iot_enterprise_secure_key_32_bytes_minimum")
@@ -147,22 +147,21 @@ def create_app() -> Flask:
         app.config["DATABASE_PATH"] = db_url
     
     # ── Resolve PUBLIC_BASE_URL (never localhost for pairing) ──
-    global PUBLIC_BASE_URL
     _env_url = os.environ.get("APP_URL", "").strip().rstrip("/")
     if not _env_url:
         _env_url = os.environ.get("RENDER_EXTERNAL_URL", "").strip().rstrip("/")
 
     if _env_url and _env_url.startswith("http"):
-        PUBLIC_BASE_URL = _env_url
+        SYSTEM_CONFIG["PUBLIC_BASE_URL"] = _env_url
     else:
         # Fallback for local pairing if not in strict production mode
         try:
             _lan = get_lan_ip()
-            PUBLIC_BASE_URL = f"http://{_lan}:5000"
+            SYSTEM_CONFIG["PUBLIC_BASE_URL"] = f"http://{_lan}:5000"
         except Exception:
-            PUBLIC_BASE_URL = "http://localhost:5000"
+            SYSTEM_CONFIG["PUBLIC_BASE_URL"] = "http://localhost:5000"
 
-    print(f"🚀 PUBLIC_BASE_URL: {PUBLIC_BASE_URL}")
+    print(f"🚀 PUBLIC_BASE_URL: {SYSTEM_CONFIG['PUBLIC_BASE_URL']}")
     print(f"Starting backend with DATABASE_PATH: {app.config['DATABASE_PATH']}")
     
     # Force DB Initialization on Startup
@@ -799,10 +798,9 @@ def create_app() -> Flask:
                 del _pair_tokens[k]
             _pair_tokens[token] = {"org_id": org_id, "expires_at": expires_at}
 
-        # Always use PUBLIC_BASE_URL (set at startup from ngrok / LAN IP).
+        # Always use SYSTEM_CONFIG["PUBLIC_BASE_URL"] (set at startup).
         # This guarantees phones NEVER receive a localhost URL.
-        global PUBLIC_BASE_URL
-        base = PUBLIC_BASE_URL.rstrip("/") if PUBLIC_BASE_URL else (
+        base = SYSTEM_CONFIG["PUBLIC_BASE_URL"].rstrip("/") if SYSTEM_CONFIG["PUBLIC_BASE_URL"] else (
             "http://" + get_lan_ip() + ":5000"
         )
         pair_url = base + "/mobile?pair=" + token
@@ -2167,6 +2165,7 @@ setup_ai()
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
+    # Resolve ngrok locally if APP_URL not set
     if not os.environ.get("APP_URL") and not os.environ.get("RENDER"):
         try:
             from pyngrok import ngrok as _ngrok, conf as _ngrok_conf
@@ -2174,8 +2173,8 @@ if __name__ == "__main__":
             if _ngrok_token:
                 _ngrok_conf.get_default().auth_token = _ngrok_token
             _tunnel = _ngrok.connect(port, bind_tls=True)
-            PUBLIC_BASE_URL = _tunnel.public_url.rstrip("/")
-            print(f"🌐 ngrok public URL: {PUBLIC_BASE_URL}")
+            SYSTEM_CONFIG["PUBLIC_BASE_URL"] = _tunnel.public_url.rstrip("/")
+            print(f"🌐 ngrok public URL: {SYSTEM_CONFIG['PUBLIC_BASE_URL']}")
         except Exception as _ngrok_err:
             print(f"⚠️ ngrok fallback: {_ngrok_err}")
 
