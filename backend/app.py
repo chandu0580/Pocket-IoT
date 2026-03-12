@@ -175,20 +175,8 @@ def create_app() -> Flask:
 
 
     @app.route("/")
-    def index():
-        host = request.host_url
-        return f"""
-        <html>
-            <body style="font-family:sans-serif; text-align:center; padding-top:100px; background:#0f172a; color:white;">
-                <h1 style="color:#6366f1;">🚀 PocketIoT Backend is LIVE</h1>
-                <p>Host detected: <code style="background:#1e293b; padding:4px 8px; rounded:8px;">{host}</code></p>
-                <div style="margin-top:40px;">
-                    <a href="/mobile" style="background:#6366f1; color:white; padding:12px 24px; border-radius:12px; text-decoration:none; font-weight:bold;">Open Mobile App</a>
-                </div>
-                <p style="margin-top:100px; color:#475569; font-size:12px;">v4.0 Enterprise Telemetry Engine</p>
-            </body>
-        </html>
-        """
+    def health_check():
+        return {"status": "PocketIoT backend running"}, 200
 
     @app.route("/_ping")
     def ping():
