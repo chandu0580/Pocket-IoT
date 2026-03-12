@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, Signal, SignalHigh, AlertCircle, Play, Square, Video } from 'lucide-react';
+import { API_BASE } from '../config';
 
 interface Props {
     deviceId: number;
@@ -40,7 +41,7 @@ const LiveCameraStream: React.FC<Props> = ({ deviceId, deviceName }) => {
         try {
             const token = localStorage.getItem('token');
             // 1. Send command to mobile device to start WebRTC
-            await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/devices/${deviceId}/command`, {
+            await fetch(`${API_BASE}/api/devices/${deviceId}/command`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -50,7 +51,7 @@ const LiveCameraStream: React.FC<Props> = ({ deviceId, deviceName }) => {
             });
 
             // 2. Setup EventSource for signaling
-            const eventSource = new EventSource(`${import.meta.env.VITE_API_BASE_URL}/api/stream?token=${token}`);
+            const eventSource = new EventSource(`${API_BASE}/api/stream?token=${token}`);
             eventSourceRef.current = eventSource;
 
             eventSource.addEventListener('webrtc_offer', async (e: any) => {
@@ -83,7 +84,7 @@ const LiveCameraStream: React.FC<Props> = ({ deviceId, deviceName }) => {
 
                 pc.onicecandidate = (event) => {
                     if (event.candidate) {
-                        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/webrtc/ice`, {
+                        fetch(`${API_BASE}/api/webrtc/ice`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -99,7 +100,7 @@ const LiveCameraStream: React.FC<Props> = ({ deviceId, deviceName }) => {
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
 
-                await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/webrtc/answer`, {
+                await fetch(`${API_BASE}/api/webrtc/answer`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ device_id: deviceId, answer })

@@ -174,10 +174,22 @@ def create_app() -> Flask:
 
     # Updated CORS for deployment stabilization
     CORS(app, 
-         resources={r"/*": {"origins": "*"}}, 
+         resources={r"/*": {"origins": ["http://localhost:5173", "https://pocket-iot.vercel.app"]}}, 
          supports_credentials=True,
          expose_headers=["Content-Type", "Authorization"],
          allow_headers=["Content-Type", "Authorization", "X-Requested-With"])
+
+    @app.errorhandler(400)
+    def bad_request(e):
+        return jsonify(error=str(e)), 400
+
+    @app.errorhandler(404)
+    def page_not_found(e):
+        return jsonify(error="Not found"), 404
+
+    @app.errorhandler(500)
+    def internal_server_error(e):
+        return jsonify(error="Internal server error"), 500
 
 
     @app.route("/")
@@ -634,10 +646,12 @@ def create_app() -> Flask:
         try:
             with get_db_connection(app.config["DATABASE_PATH"]) as conn:
                 history = models.get_device_history(conn, device_id, minutes)
+            if not history:
+                return jsonify([]), 200
             return jsonify(history), 200
         except Exception:
             logging.exception("Failed to fetch device history")
-            return jsonify({"error": "Internal server error"}), 500
+            return jsonify([]), 200
 
     # WebRTC Signaling Infrastructure
     webrtc_sessions = {} # device_id -> session_data
@@ -1869,9 +1883,10 @@ def create_app() -> Flask:
             yield from broadcaster.stream_generator(q)
 
         resp = Response(generate(), mimetype="text/event-stream")
+        resp.headers["Content-Type"] = "text/event-stream"
         resp.headers["Cache-Control"] = "no-cache"
-        resp.headers["X-Accel-Buffering"] = "no"
         resp.headers["Connection"] = "keep-alive"
+        resp.headers["X-Accel-Buffering"] = "no"
         return resp
 
     @app.route("/api/analytics/<metric>", methods=["GET"])

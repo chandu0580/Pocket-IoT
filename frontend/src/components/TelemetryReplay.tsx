@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Play, Pause, RotateCcw, FastForward, Clock } from 'lucide-react';
+import { API_BASE } from '../config';
 
 interface HistoryPoint {
     latitude: number;
@@ -31,7 +32,7 @@ const TelemetryReplay: React.FC<Props> = ({ deviceId, deviceName }) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/devices/${deviceId}/history?minutes=30`, {
+            const res = await fetch(`${API_BASE}/api/devices/${deviceId}/history?minutes=30`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
