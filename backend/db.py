@@ -139,8 +139,12 @@ def column_exists(cursor: Any, table: str, column: str) -> bool:
             """, (table, column))
             row = cursor.fetchone()
             if row and (isinstance(row, dict) or hasattr(row, '__getitem__')):
-                try: return bool(row["exists"])
-                except: return bool(row[0])
+                try: 
+                    if isinstance(row, dict):
+                        return bool(row.get("exists") or list(row.values())[0])
+                    return bool(row[0])
+                except (KeyError, IndexError, TypeError): 
+                    return False
             return bool(row)
         else:
             cursor.execute(f"PRAGMA table_info({table})")
@@ -293,6 +297,13 @@ def _create_base_tables(cursor: Any, is_pg: bool) -> None:
             FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE,
             FOREIGN KEY (alert_id) REFERENCES alerts(id) ON DELETE CASCADE
         )""",
+
+        # QR Pairing tokens — stored in DB so all workers can share them
+        f"""CREATE TABLE IF NOT EXISTS qr_tokens (
+            token      TEXT PRIMARY KEY,
+            org_id     INTEGER NOT NULL,
+            expires_at TEXT NOT NULL
+        )""",
     ]
 
     logging.info("Building base schema...")
@@ -364,6 +375,14 @@ def _run_migrations(cursor: Any) -> None:
     # ── notifications ─────────────────────────────────────────────────────────
     _migrate(cursor, "ALTER TABLE notifications ADD COLUMN organization_id INTEGER")
 
+    # ── qr_tokens — no extra columns, but purge any stale rows at startup ─────
+    # (Table is created by _create_base_tables; migration just keeps it clean)
+    try:
+        cursor.execute("DELETE FROM qr_tokens WHERE expires_at < datetime('now')")
+        cursor.connection.commit()
+    except Exception:
+        pass  # Table may not exist yet on very first boot — that's fine
+
     logging.info("Database migrations complete.")
 
 
@@ -405,6 +424,10 @@ def _create_indexes(cursor: Any) -> None:
 
     if column_exists(cursor, "devices", "status"):
         _migrate(cursor, "CREATE INDEX IF NOT EXISTS idx_devices_status ON devices (status)")
+
+    # qr_tokens index — token is PRIMARY KEY (already unique + indexed),
+    # but an explicit named index makes intent clear and speeds expires_at scans
+    _migrate(cursor, "CREATE INDEX IF NOT EXISTS idx_qr_tokens_expires ON qr_tokens (expires_at)")
 
     logging.info("Database indexes created.")
 
@@ -459,6 +482,9 @@ def init_db(url_or_path: str) -> None:
                 cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='devices'")
                 row = cursor.fetchone()
                 exists = row is not None
+            
+            if exists is None: # Possible if row existed but extraction failed
+                exists = True if row else False
 
             if not exists:
                 raise Exception("'devices' table not found after initialization")

@@ -256,11 +256,15 @@ def create_app() -> Flask:
                     # Robust ID extraction for dict cursors
                     if org_row and (isinstance(org_row, dict) or hasattr(org_row, '__getitem__')):
                         try:
-                            default_org_id = org_row["id"]
-                        except (KeyError, TypeError):
-                            default_org_id = org_row[0]
+                            # Try both "id" and first positional column
+                            if isinstance(org_row, dict):
+                                default_org_id = org_row.get("id") or list(org_row.values())[0]
+                            else:
+                                default_org_id = org_row[0]
+                        except (IndexError, KeyError, TypeError):
+                            default_org_id = None
                     else:
-                        default_org_id = org_row[0] if org_row else None
+                        default_org_id = None
                     
                     # Check if admin already exists to avoid redundant hashing/inserts
                     cursor.execute("SELECT id FROM users WHERE email = 'admin@pocketiot.com'")
@@ -714,7 +718,7 @@ def create_app() -> Flask:
                 c = conn.cursor()
                 c.execute("SELECT id FROM organizations ORDER BY id ASC LIMIT 1")
                 org_row = c.fetchone()
-                org_id = org_row[0] if org_row else None
+                org_id = (list(org_row.values())[0] if isinstance(org_row, dict) else org_row[0]) if org_row else None
 
                 # Find existing device with same name in same org, or create new
                 existing_query = f"SELECT id, name, device_token, device_api_key, organization_id FROM devices WHERE name = {p}"
@@ -756,7 +760,8 @@ def create_app() -> Flask:
                         )
                     conn.commit()
                     c.execute(f"SELECT id FROM devices WHERE device_api_key = {p}", (api_key,))
-                    device_id = c.fetchone()[0]
+                    row = c.fetchone()
+                    device_id = (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else None
 
             broadcaster.broadcast("device_registered", {
                 "device_id": device_id,
@@ -790,13 +795,26 @@ def create_app() -> Flask:
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
         org_id = request.org_id
 
-        with _pair_tokens_lock:
-            # Evict expired tokens lazily
-            now_utc = datetime.now(timezone.utc)
-            expired = [k for k, v in _pair_tokens.items() if v["expires_at"] < now_utc]
-            for k in expired:
-                del _pair_tokens[k]
-            _pair_tokens[token] = {"org_id": org_id, "expires_at": expires_at}
+        try:
+            with get_db_connection(app.config["DATABASE_PATH"]) as conn:
+                c = conn.cursor()
+                p = get_placeholder(conn)
+                c.execute("""
+                    CREATE TABLE IF NOT EXISTS qr_tokens (
+                        token TEXT PRIMARY KEY,
+                        org_id INTEGER NOT NULL,
+                        expires_at TEXT NOT NULL
+                    )
+                """)
+                now_str = datetime.now(timezone.utc).isoformat() + "Z"
+                c.execute(f"DELETE FROM qr_tokens WHERE expires_at < {p}", (now_str,))
+                
+                exp_str = expires_at.isoformat() + "Z"
+                c.execute(f"INSERT INTO qr_tokens (token, org_id, expires_at) VALUES ({p}, {p}, {p})", (token, org_id, exp_str))
+                conn.commit()
+        except Exception:
+            logging.exception("Failed to store QR pairing token in DB")
+            return jsonify({"error": "Internal server error"}), 500
 
         # Always use SYSTEM_CONFIG["PUBLIC_BASE_URL"] (set at startup).
         # This guarantees phones NEVER receive a localhost URL.
@@ -826,33 +844,44 @@ def create_app() -> Flask:
         if not pair_token:
             return jsonify({"error": "pair_token is required"}), 400
 
-        with _pair_tokens_lock:
-            entry = _pair_tokens.get(pair_token)
-            if not entry:
-                return jsonify({"error": "Invalid or expired pairing token"}), 401
-            if entry["expires_at"] < datetime.now(timezone.utc):
-                del _pair_tokens[pair_token]
-                return jsonify({"error": "Pairing token has expired"}), 401
-            # Consume token (one-time use)
-            del _pair_tokens[pair_token]
-            org_id = entry["org_id"]
-
         try:
             with get_db_connection(app.config["DATABASE_PATH"]) as conn:
+                c = conn.cursor()
                 p = get_placeholder(conn)
+                
+                try:
+                    c.execute(f"SELECT org_id, expires_at FROM qr_tokens WHERE token = {p}", (pair_token,))
+                    row = c.fetchone()
+                except Exception:
+                    row = None
+                    
+                if not row:
+                    return jsonify({"error": "Invalid or expired pairing token"}), 401
+                    
+                org_id = list(row.values())[0] if isinstance(row, dict) else row[0]
+                expires_at_str = list(row.values())[1] if isinstance(row, dict) else row[1]
+                now_str = datetime.now(timezone.utc).isoformat() + "Z"
+                
+                c.execute(f"DELETE FROM qr_tokens WHERE token = {p}", (pair_token,))
+                conn.commit()
+                
+                if expires_at_str < now_str:
+                    return jsonify({"error": "Pairing token has expired"}), 401
+
                 import uuid as _uuid
                 device_name = "QR-Device-" + str(_uuid.uuid4())[:8].upper()
                 device_token = _sec.token_hex(16)
                 api_key = _sec.token_hex(20)
-                now_str = datetime.utcnow().isoformat() + "Z"
+                now_str_db = datetime.utcnow().isoformat() + "Z"
                 conn.execute(
                     f"INSERT INTO devices (name, device_token, device_api_key, organization_id, status, created_at) VALUES ({p},{p},{p},{p},'offline',{p})",
-                    (device_name, device_token, api_key, org_id, now_str)
+                    (device_name, device_token, api_key, org_id, now_str_db)
                 )
                 conn.commit()
                 c = conn.cursor()
                 c.execute(f"SELECT id FROM devices WHERE device_api_key = {p}", (api_key,))
-                device_id = c.fetchone()[0]
+                row = c.fetchone()
+                device_id = (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else None
 
             broadcaster.broadcast("device_registered", {
                 "device_id": device_id,
@@ -1145,7 +1174,9 @@ def create_app() -> Flask:
                         check_query = "SELECT COUNT(*) FROM alerts WHERE device_id = ? AND type = 'battery' AND created_at > datetime('now', '-1 hour')"
                     
                     c.execute(check_query, (device_id,))
-                    if c.fetchone()[0] == 0:
+                    row = c.fetchone()
+                    count = (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else 0
+                    if count == 0:
                         aid = create_alert(
                             conn, device_id, "battery",
                             f"Low battery ({battery:.1f}%) on {device['name']}", timestamp,
@@ -1382,7 +1413,7 @@ def create_app() -> Flask:
                     (device_id,)
                 )
                 rows = c.fetchall()
-                snapshots = [{"id": r[0], "image_base64": r[1], "timestamp": r[2]} for r in rows]
+                snapshots = [models._row(r) for r in rows]
             return jsonify(snapshots), 200
         except Exception:
             logging.exception("Failed to fetch snapshots")
@@ -1517,7 +1548,13 @@ def create_app() -> Flask:
                 row = c.fetchone()
                 if not row: return
                 
-                device_name, org_id, org_email, org_webhook = row
+                if isinstance(row, dict):
+                    device_name = row.get("name")
+                    org_id = row.get("organization_id")
+                    org_email = row.get("email")
+                    org_webhook = row.get("webhook_url")
+                else:
+                    device_name, org_id, org_email, org_webhook = row
             
             # Use the new service
             trigger_alert_notifications(
@@ -1558,22 +1595,7 @@ def create_app() -> Flask:
                 c.execute(query, (request.org_id, limit, offset))
                 rows = c.fetchall()
                 
-                if is_pg:
-                    desc = c.description
-                    notifications = [dict(zip([col[0] for col in desc], row)) for row in rows]
-                else:
-                    notifications = []
-                    for r in rows:
-                        notifications.append({
-                            "id": r[0],
-                            "device_id": r[1],
-                            "device_name": r[2],
-                            "type": r[3],
-                            "message": r[4],
-                            "status": r[5],
-                            "created_at": r[6]
-                        })
-
+                notifications = [models._row(r) for r in rows]
             return jsonify(notifications), 200
         except Exception:
             logging.exception("Failed to fetch notifications")
@@ -1661,7 +1683,8 @@ def create_app() -> Flask:
                 
                 # Verify rows exist for this org to avoid crash
                 c.execute(f"SELECT COUNT(s.id) FROM sensor_data s JOIN devices d ON s.device_id = d.id WHERE d.organization_id = {p}", (request.org_id,))
-                total_rows = c.fetchone()[0]
+                row = c.fetchone()
+                total_rows = (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else 0
                 
                 if total_rows == 0:
                     return jsonify({
@@ -1676,7 +1699,8 @@ def create_app() -> Flask:
                     c.execute(f"SELECT COUNT(s.id) FROM sensor_data s JOIN devices d ON s.device_id = d.id WHERE s.is_anomaly = TRUE AND s.timestamp::date = CURRENT_DATE AND d.organization_id = {p}", (request.org_id,))
                 else:
                     c.execute(f"SELECT COUNT(s.id) FROM sensor_data s JOIN devices d ON s.device_id = d.id WHERE s.is_anomaly = 1 AND date(s.timestamp) = date('now') AND d.organization_id = {p}", (request.org_id,))
-                anomalies_today = c.fetchone()[0] or 0
+                row = c.fetchone()
+                anomalies_today = ((list(row.values())[0] if isinstance(row, dict) else row[0]) or 0) if row else 0
 
                 # 2. Most active device
                 c.execute(f"""
@@ -1688,16 +1712,18 @@ def create_app() -> Flask:
                     ORDER BY count DESC LIMIT 1
                 """, (request.org_id,))
                 row = c.fetchone()
-                most_active_device = row[0] if row else "N/A"
+                most_active_device = (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else "N/A"
 
                 # 3. Highest motion spike
                 c.execute(f"SELECT MAX(s.motion_magnitude) FROM sensor_data s JOIN devices d ON s.device_id = d.id WHERE d.organization_id = {p}", (request.org_id,))
-                highest_spike = c.fetchone()[0]
+                row = c.fetchone()
+                highest_spike = (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else 0.0
                 highest_spike = float(highest_spike) if highest_spike is not None else 0.0
 
                 # 4. Average magnitude (recent 1000 points)
                 c.execute(f"SELECT AVG(motion_magnitude) FROM (SELECT s.motion_magnitude FROM sensor_data s JOIN devices d ON s.device_id = d.id WHERE d.organization_id = {p} ORDER BY s.timestamp DESC LIMIT 1000) as recent", (request.org_id,))
-                avg_magnitude = c.fetchone()[0]
+                row = c.fetchone()
+                avg_magnitude = (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else 0.0
                 avg_magnitude = float(avg_magnitude) if avg_magnitude is not None else 0.0
                 
                 print(f"DEBUG AI Insights: Anomalies={anomalies_today}, ActiveDevice={most_active_device}, Spike={highest_spike}, Avg={avg_magnitude}")
@@ -1928,9 +1954,22 @@ def create_app() -> Flask:
                 
                 results = []
                 for r in rows:
+                    row_dict = models._row(r)
+                    # Extract timestamp and value from the row dict
+                    # psycopg3 keys will be 'bucket' and 'value'
+                    # SQLite keys depend on the query but _row handles it
+                    ts_val = list(row_dict.values())[0] # first col is timestamp/bucket
+                    measure_val = list(row_dict.values())[1] # second col is value
+                    
+                    try:
+                        dt_obj = datetime.fromisoformat(ts_val.replace("Z", "+00:00")) if isinstance(ts_val, str) else datetime.fromtimestamp(ts_val)
+                        ts_iso = dt_obj.isoformat()
+                    except:
+                        ts_iso = str(ts_val)
+
                     results.append({
-                        "timestamp": datetime.fromtimestamp(r[0]).isoformat(),
-                        "value": round(float(r[1]), 2) if r[1] is not None else 0
+                        "timestamp": ts_iso,
+                        "value": round(float(measure_val), 2) if measure_val is not None else 0
                     })
                 
             return jsonify(results), 200
@@ -2093,7 +2132,12 @@ def setup_ai():
             with get_db_connection(app.config["DATABASE_PATH"]) as conn:
                 c = conn.cursor()
                 c.execute("SELECT motion_magnitude FROM sensor_data ORDER BY timestamp DESC LIMIT 2000")
-                mags = [r[0] for r in c.fetchall() if r[0] is not None]
+                rows = c.fetchall()
+                mags = []
+                for r in rows:
+                    val = list(r.values())[0] if isinstance(r, dict) else r[0]
+                    if val is not None:
+                        mags.append(val)
                 if mags:
                     print(f"DEBUG AI: Pre-training with {len(mags)} historical points.")
                     detector.train(mags)

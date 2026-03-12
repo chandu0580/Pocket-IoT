@@ -54,7 +54,8 @@ def create_organization(conn: Any, name: str, plan: str = "Free") -> Dict[str, A
         org_id = c.lastrowid
     else:
         c.execute("SELECT LASTVAL()")
-        org_id = c.fetchone()[0]
+        row = c.fetchone()
+        org_id = (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else None
     return get_organization(conn, org_id) # type: ignore
 
 # ────────────────────────────────── Teams ────────────────────────────────────
@@ -74,7 +75,8 @@ def create_team(conn: Any, name: str, org_id: int) -> Dict[str, Any]:
         team_id = c.lastrowid
     else:
         c.execute("SELECT LASTVAL()")
-        team_id = c.fetchone()[0]
+        row = c.fetchone()
+        team_id = (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else None
     c.execute(f"SELECT id, name, organization_id, created_at FROM teams WHERE id = {p}", (team_id,))
     return _row(c.fetchone())
 
@@ -245,7 +247,8 @@ def register_or_get_device(conn: Any, name: str, org_id: Optional[int] = None) -
         device_id = c.lastrowid
     else:
         c.execute("SELECT LASTVAL()")
-        device_id = c.fetchone()[0]
+        row = c.fetchone()
+        device_id = (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else None
         
     c.execute(f"SELECT id, name, device_token, last_seen, created_at, organization_id FROM devices WHERE id = {p}", (device_id,))
     return _row(c.fetchone())
@@ -276,7 +279,8 @@ def create_group(conn: Any, name: str, org_id: int) -> Dict[str, Any]:
         group_id = c.lastrowid
     else:
         c.execute("SELECT LASTVAL()")
-        group_id = c.fetchone()[0]
+        row = c.fetchone()
+        group_id = (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else None
         
     c.execute(f"SELECT id, name, organization_id, created_at FROM device_groups WHERE id = {p}", (group_id,))
     return _row(c.fetchone())
@@ -353,7 +357,8 @@ def create_sensor_data(
         return c.lastrowid # type: ignore
     else:
         c.execute("SELECT LASTVAL()")
-        return c.fetchone()[0]
+        row = c.fetchone()
+        return (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else 0
 
 
 def get_sensor_data(
@@ -394,7 +399,8 @@ def create_device_snapshot(conn: Any, device_id: int, image_base64: str, timesta
         return c.lastrowid # type: ignore
     else:
         c.execute("SELECT LASTVAL()")
-        return c.fetchone()[0]
+        row = c.fetchone()
+        return (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else 0
 
 
 def get_latest_snapshot(conn: Any, device_id: int) -> Optional[Dict[str, Any]]:
@@ -421,7 +427,8 @@ def create_alert_rule(conn: Any, device_id: Optional[int], sensor_type: str, ope
         return c.lastrowid # type: ignore
     else:
         c.execute("SELECT LAST_INSERT_ID()") # Fallback for Postgres
-        return c.fetchone()[0]
+        row = c.fetchone()
+        return (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else 0
 
 def update_alert_rule_count(conn: Any, rule_id: int, count: int) -> None:
     p = get_placeholder(conn)
@@ -462,7 +469,7 @@ def create_alert(
         c.execute(f"SELECT organization_id FROM devices WHERE id = {p}", (device_id,))
         row = c.fetchone()
         if row:
-            organization_id = row[0]
+            organization_id = (list(row.values())[0] if isinstance(row, dict) else row[0])
             
     c.execute(
         f"INSERT INTO alerts (device_id, organization_id, type, message, severity, magnitude, status, created_at) VALUES ({p}, {p}, {p}, {p}, {p}, {p}, {p}, {p})",
@@ -474,7 +481,8 @@ def create_alert(
         return c.lastrowid # type: ignore
     else:
         c.execute("SELECT LASTVAL()")
-        return c.fetchone()[0]
+        row = c.fetchone()
+        return (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else 0
 
 
 def get_alerts(
@@ -517,8 +525,10 @@ def count_today_data_points(conn: Any, org_id: int) -> int:
     today = datetime.now(timezone.utc).date().isoformat()
     c = conn.cursor()
     p = get_placeholder(conn)
-    c.execute(f"SELECT COUNT(*) FROM sensor_data s JOIN devices d ON s.device_id = d.id WHERE d.organization_id = {p} AND s.timestamp >= {p}", (org_id, today))
-    return c.fetchone()[0]
+    c.execute(f"SELECT COUNT(*) as count FROM sensor_data s JOIN devices d ON s.device_id = d.id WHERE d.organization_id = {p} AND s.timestamp >= {p}", (org_id, today))
+    row = c.fetchone()
+    if not row: return 0
+    return row.get("count") if isinstance(row, dict) else row[0]
 
 
 # ────────────────────────────── Commands ─────────────────────────────────────
@@ -537,7 +547,8 @@ def create_command(conn: Any, device_id: int, command: str, payload: Dict[str, A
         return c.lastrowid # type: ignore
     else:
         c.execute("SELECT LASTVAL()")
-        return c.fetchone()[0]
+        row = c.fetchone()
+        return (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else 0
 
 
 def get_pending_commands(conn: Any, device_id: int) -> List[Dict[str, Any]]:
@@ -600,7 +611,8 @@ def create_user(conn: Any, email: str, password_hash: str, role: str = 'viewer',
         return c.lastrowid # type: ignore
     else:
         c.execute("SELECT LASTVAL()")
-        return c.fetchone()[0]
+        row = c.fetchone()
+        return (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else 0
 
 def get_user_by_email(conn: Any, email: str) -> Optional[Dict[str, Any]]:
     c = conn.cursor()
@@ -637,7 +649,8 @@ def create_notification(conn: Any, org_id: int, n_type: str, message: str, devic
         return c.lastrowid # type: ignore
     else:
         c.execute("SELECT LASTVAL()")
-        return c.fetchone()[0]
+        row = c.fetchone()
+        return (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else 0
 
 def get_notifications(conn: Any, org_id: int, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
     c = conn.cursor()

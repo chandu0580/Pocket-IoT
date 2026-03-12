@@ -48,7 +48,8 @@ class NotificationService:
                     return c.lastrowid
                 else:
                     c.execute("SELECT LASTVAL()")
-                    return c.fetchone()[0]
+                    row = c.fetchone()
+                    return (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else -1
         except Exception:
             logger.exception("Failed to create notification record")
             return -1

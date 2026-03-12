@@ -115,9 +115,10 @@ def migrate():
                 default_org_id = cursor.lastrowid
             else:
                 cursor.execute("SELECT LASTVAL()")
-                default_org_id = cursor.fetchone()[0]
+                row = cursor.fetchone()
+                default_org_id = (list(row.values())[0] if isinstance(row, dict) else row[0]) if row else None
         else:
-            default_org_id = org[0]
+            default_org_id = (list(org.values())[0] if isinstance(org, dict) else org[0]) if org else None
 
         print(f"Default Organization ID: {default_org_id}")
 
