@@ -108,12 +108,14 @@ def _migrate(cursor: Any, stmt: str) -> None:
     """Execute a SQL statement, with informative logging for errors."""
     try:
         cursor.execute(stmt)
+        # Commit each migration individually to ensure success is registered even if subsequent ones fail.
+        # This prevents Postgres transaction aborts from rolling back previous successful migrations.
+        cursor.connection.commit()
     except Exception as e:
         err = str(e).lower()
         
         # If we are on Postgres, a failed command aborts the transaction.
         # We MUST rollback to clear the "aborted" state and continue with next commands.
-        # This is safe because migrations are idempotent.
         is_pg = is_postgres(cursor.connection)
         if is_pg:
             cursor.connection.rollback()
@@ -179,17 +181,20 @@ def _create_base_tables(cursor: Any, is_pg: bool) -> None:
 
         # Device groups
         f"""CREATE TABLE IF NOT EXISTS device_groups (
-            id         {pk},
-            name       TEXT NOT NULL UNIQUE,
-            created_at TEXT NOT NULL DEFAULT {dt}
+            id              {pk},
+            organization_id INTEGER,
+            name            TEXT NOT NULL UNIQUE,
+            created_at      TEXT NOT NULL DEFAULT {dt}
         )""",
 
         # Devices (minimal — further columns added via migration)
         f"""CREATE TABLE IF NOT EXISTS devices (
-            id           {pk},
-            name         TEXT NOT NULL UNIQUE,
-            device_token TEXT NOT NULL UNIQUE,
-            created_at   TEXT NOT NULL DEFAULT {dt}
+            id              {pk},
+            organization_id INTEGER,
+            team_id         INTEGER,
+            name            TEXT NOT NULL UNIQUE,
+            device_token    TEXT NOT NULL UNIQUE,
+            created_at      TEXT NOT NULL DEFAULT {dt}
         )""",
 
         # Sensor data (minimal)
@@ -293,6 +298,7 @@ def _run_migrations(cursor: Any) -> None:
 
     # ── devices ──────────────────────────────────────────────────────────────
     _migrate(cursor, "ALTER TABLE devices ADD COLUMN organization_id INTEGER")
+    _migrate(cursor, "ALTER TABLE devices ADD COLUMN team_id INTEGER")
     _migrate(cursor, "ALTER TABLE devices ADD COLUMN group_id INTEGER")
     _migrate(cursor, "ALTER TABLE devices ADD COLUMN status TEXT NOT NULL DEFAULT 'active'")
     _migrate(cursor, "ALTER TABLE devices ADD COLUMN last_seen TEXT")
@@ -304,6 +310,9 @@ def _run_migrations(cursor: Any) -> None:
     _migrate(cursor, "ALTER TABLE devices ADD COLUMN network_strength TEXT")
     _migrate(cursor, "ALTER TABLE devices ADD COLUMN os_info TEXT")
     _migrate(cursor, "ALTER TABLE devices ADD COLUMN device_api_key TEXT")
+    
+    # ── device_groups ──────────────────────────────────────────────────────────
+    _migrate(cursor, "ALTER TABLE device_groups ADD COLUMN organization_id INTEGER")
 
     # ── sensor_data ───────────────────────────────────────────────────────────
     _migrate(cursor, "ALTER TABLE sensor_data ADD COLUMN gyro_x REAL")
